@@ -1,0 +1,22 @@
+name: ultcpa_flutter
+description: Flutter migration of the registered ultCPA Android product surface.
+publish_to: none
+version: 1.2.5+26071018
+
+environment:
+  sdk: '>=3.8.0 <4.0.0'
+
+dependencies:
+  dio: ^5.9.0
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: false
+  assets:
+    - assets/images/bg_wel_new.png
