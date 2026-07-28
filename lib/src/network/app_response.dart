@@ -38,7 +38,7 @@ abstract final class AppResponse {
       final root = Map<String, Object?>.from(decoded);
       final code = _asInt(root['code']);
       final message = (root['msg'] ?? root['message'] ?? '').toString();
-      if (code != 200) {
+      if (code != 200 && code != 2001) {
         return AppFailure<T>(
           kind: AppFailureKind.business,
           code: code,

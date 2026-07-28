@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path
+        name="pre_exam_six_paper_internal"
+        path="pre_exam_six_paper/" />
+    <external-cache-path
+        name="pre_exam_six_paper_external"
+        path="pre_exam_six_paper/" />
+    <external-files-path
+        name="app_update_external"
+        path="update/" />
+</paths>

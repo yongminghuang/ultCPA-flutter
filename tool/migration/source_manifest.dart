@@ -63,7 +63,7 @@ void main(List<String> arguments) {
   final output = File(outputPath)..parent.createSync(recursive: true);
   output.writeAsStringSync(
     <String>[
-      'source,activity,disposition',
+      'source,activity,disposition,migrationStatus,flutterSurface,evidence',
       ...rows.map((row) => row.toCsv()),
       '',
     ].join('\n'),

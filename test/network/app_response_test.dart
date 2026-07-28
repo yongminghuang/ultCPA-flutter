@@ -12,6 +12,15 @@ void main() {
     expect(success.value['name'], '会员');
   });
 
+  test('treats the legacy login code 2001 as success', () {
+    final result = AppResponse.resolve<String>(
+      '{"code":2001,"body":"access-token"}',
+      (body) => body! as String,
+    );
+
+    expect((result as AppSuccess<String>).value, 'access-token');
+  });
+
   test('keeps a 16-plus digit SKU id exact in a raw body list', () {
     final result = AppResponse.resolveList<Map<String, Object?>>(
       '{"code":200,"body":[{"productSkuId":9007199254740993}]}',

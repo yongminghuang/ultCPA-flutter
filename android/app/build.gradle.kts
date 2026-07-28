@@ -14,7 +14,7 @@ val hasLegacySigning = signingValues.values.all { !it.isNullOrBlank() }
 
 android {
     namespace = "com.xmzj.ult.agg"
-    compileSdk = 34
+    compileSdk = 35
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -93,4 +93,10 @@ gradle.taskGraph.whenReady {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation("com.tencent:mmkv-static:1.2.8")
+    implementation("com.tencent.mm.opensdk:wechat-sdk-android:6.8.30")
+    implementation("com.alipay.sdk:alipaysdk-android:15.8.42@aar")
 }

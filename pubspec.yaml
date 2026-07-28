@@ -8,8 +8,10 @@ environment:
 
 dependencies:
   dio: ^5.9.0
+  encrypt: ^5.0.3
   flutter:
     sdk: flutter
+  webview_flutter: 4.13.1
 
 dev_dependencies:
   flutter_lints: ^6.0.0
@@ -20,3 +22,9 @@ flutter:
   uses-material-design: false
   assets:
     - assets/images/bg_wel_new.png
+    - assets/images/fast_practice/
+    - assets/images/pre_exam_six_paper/
+    - assets/images/pre_exam_secret_paper/
+    - assets/images/smart_card/
+    - assets/images/settings/
+    - assets/images/vip_purchase/

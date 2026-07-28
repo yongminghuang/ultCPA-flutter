@@ -1,78 +1,78 @@
-source,activity,disposition
-ModuleLoginAndPay/AndroidManifest.xml,com.cmic.sso.sdk.activity.LoginAuthActivity,sdkManaged
-QnmLibrary/AndroidManifest.xml,com.jx885.library.album.PhotoPreviewActivity,flutterPage
-ModuleLoginAndPay/AndroidManifest.xml,com.jx885.library.web.WebOtherActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.learn.ExamResultActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.learn.LearnActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.learn.LearnActivityExam,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.BackFromAlipayActivity,pluginCallback
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.MainActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.SplashActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.AccountActivityNew,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.AgreeDialogActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.BigSkillCircleResultActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.BigSkillPaperPdfListActivity,removed
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.BigSkillPaperPdfListEntryActivity,removed
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.BigSkillPracticePurchaseSuccessActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.ChangePhoneActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.ChapterPracticeListActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.Crash200QuestionListActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.CustomOnekeyLoginActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.DailySkillDetailActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.DailySkillReportActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.DocumentDetailActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.ExamRecordActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.FastLearnLandingActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.FineCourseSubActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.LearnClassifyActivityNew,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.LearningMaterialsFeedActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.LearningVideoDetailActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.LoginActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.OpenVipDaZhaoActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.OpenVipMultiPayActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.PastExamsPaperListActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.PreExamSecretPaperLandingActivity2,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.PreExamSixPaperLandingActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.PreExamSixPaperPreviewActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.PurchaseHistoryActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.ReadyLearnActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.SafeCheckActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.ShortVideoActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.SingleVipVideoPlayActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.SkillMnemonicsActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.SkillMnemonicsDetailActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.SkillResultActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.SmartCardActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.SubjectVideoActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.TeacherCoursePlayActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.UnbindActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.VideoPlayActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.VipCourseActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.VipDifferenceUpgradeActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.VipPurchaseSuccessActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.VipVideoPalyActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.WebViewActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.WebViewBeforeActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.recommend.ChangePosterActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.recommend.ChangedRecommendActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.recommend.RecommendActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.setting.AccountDetailsSettingActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.setting.AccountSettingActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.setting.AccountUnbindSettingActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.setting.PrivacySettingActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.setting.SettingActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.skit.SelectNumActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.skit.ViewPager2Activity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.ui.FrameLayoutActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.ui.OpenVipSuccessActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.ui.exam.EmptyPayActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.ui.learn.ReadyBeforeExamActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.ui.video.AliVideoPlayActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.ui.video.newVideoPlay.NewVideoPlayActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.ui.web.SpeedWebActivity,flutterPage
-ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.ui.web.WebActivity,flutterPage
-lib_http_capture/src/main/AndroidManifest.xml,com.levine.http_capture.NetRequestRecordActivity,flutterPage
-ModuleLoginAndPay/AndroidManifest.xml,com.mobile.auth.gatewayauth.LoginAuthActivity,sdkManaged
-ModuleLoginAndPay/AndroidManifest.xml,com.mobile.auth.gatewayauth.activity.AuthWebVeiwActivity,sdkManaged
-ultCPA/src/main/AndroidManifest.xml,com.xmzj.ult.agg.wxapi.WXEntryActivity,pluginCallback
-ultCPA/src/main/AndroidManifest.xml,com.xmzj.ult.agg.wxapi.WXPayEntryActivity,pluginCallback
+source,activity,disposition,migrationStatus,flutterSurface,evidence
+ModuleLoginAndPay/AndroidManifest.xml,com.cmic.sso.sdk.activity.LoginAuthActivity,sdkManaged,external,,owned by Android plugin or SDK
+QnmLibrary/AndroidManifest.xml,com.jx885.library.album.PhotoPreviewActivity,flutterPage,pending,,
+ModuleLoginAndPay/AndroidManifest.xml,com.jx885.library.web.WebOtherActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.learn.ExamResultActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.learn.LearnActivity,flutterPage,partial,PracticePage / PracticeResultPage,"normal mixed practice and skill-related questions migrated; Mine error/collection review migrated; collection editing migrated; wrong-question removal settings and Home error-review entry migrated; chapter selection and resume, chapter-only redo, and automatic next chapter migrated; speed-practice leaf loading and flat position persistence migrated; daily local restore, daily answer persistence, completion, and daily report routing migrated; exams, course, promotion/payment, audio, and correction modes pending"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.learn.LearnActivityExam,flutterPage,partial,ExamPage / ExamReviewPage,"past-exam pageGoodsData request and secret-paper normal exam migrated; selection-only 135-minute timer, answer card, hand-in, batch answer upload, and read-only review migrated; driving, course, and other exam modes pending"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.BackFromAlipayActivity,pluginCallback,external,,owned by Android plugin or SDK
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.MainActivity,flutterPage,partial,MainTabsPage,three-tab shell and daily skill destination migrated; pre-exam six-paper destination migrated; smart-card destination migrated; past-exams destination migrated; secret-paper destination migrated; Mine settings destination migrated; Mine profile and normal sign-out migrated; Mine purchase-history destination migrated; account-safety destination and deactivation session refresh migrated; Mine customer-service action migrated with signed getWxCustomerUrl fallback and WeChat mini-program bridge; Mine collect-book H5 route migrated; Mine invite-friends H5 route migrated; hidden learning-guide row preserved; manual Mine app-version check and update handoff migrated; privacy-gated cold-ready and foreground proactive app-version checks migrated with shared 30-minute throttle and 15-second/3-second secondary splash; Mine VIP CTA and paid-result refresh migrated; remaining business destinations and other shared payment launchers pending
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.SplashActivity,flutterPage,complete,StartupApp / StartupSplashPage,startup coordinator and splash widget tests
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.AccountActivityNew,flutterPage,complete,AccountProfilePage,"read-only avatar and username, account ID copy, exact fire-and-forget logout, hardened legacy session cleanup, and anonymous session refresh covered by tests"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.AgreeDialogActivity,flutterPage,complete,PrivacyConsentDialog,privacy consent widget and startup flow tests
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.BigSkillCircleResultActivity,flutterPage,partial,ExamResultPage,"floored accuracy, elapsed time, grouped six-column answer card, and all/wrong review migrated; prediction and payment pending"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.BigSkillPaperPdfListActivity,removed,removed,,approved removal
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.BigSkillPaperPdfListEntryActivity,removed,removed,,approved removal
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.BigSkillPracticePurchaseSuccessActivity,flutterPage,partial,BigSkillPracticePurchaseSuccessPage,"four benefit kinds, post-payment benefit refresh, Android success copy and asset, selected-market module fallback, typed practice handoff with benefit kind and circle module, and Home back intent covered by tests; Home marketing float payment entry pending; QuestionPackagePayDialog pending; circle-paper destination pending"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.ChangePhoneActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.ChapterPracticeListActivity,flutterPage,complete,ChapterPracticePage,"tree and record chunking, progress and preview locks, persisted expansion, and completed chapter choices covered by repository and widget tests"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.Crash200QuestionListActivity,flutterPage,complete,FastPracticeCatalogPage,"entitlement split, recursive leaf list, selected-leaf runner, records, and position tests"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.CustomOnekeyLoginActivity,flutterPage,partial,PhoneLoginPage,phone captcha login migrated; carrier one-key flow pending
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.DailySkillDetailActivity,flutterPage,complete,DailySkillDetailPage,"detail repository, same-day progress, completed state, retry, and practice replacement covered by tests"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.DailySkillReportActivity,flutterPage,complete,DailySkillReportPage,"statistics, six-column answer card, read-only analysis, and improvement routing covered by tests"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.DocumentDetailActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.ExamRecordActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.FastLearnLandingActivity,flutterPage,partial,FastPracticeLandingPage,"asset-backed landing, popup source 1010, injectable unlock override, and confirmed-payment catalog transition covered by tests"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.FineCourseSubActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.LearnClassifyActivityNew,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.LearningMaterialsFeedActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.LearningVideoDetailActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.LoginActivity,flutterPage,partial,PhoneLoginPage,phone captcha login migrated; alternate login modes pending
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.OpenVipDaZhaoActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.OpenVipMultiPayActivity,flutterPage,partial,VipPurchasePage,"Mine full-screen selection, six-paper full-screen entry, VipPaySheet popup, product/SKU requests, visible privileges and marketing, login gate, and native WeChat/Alipay checkout migrated; shared checkout coordination, WeChat server-status confirmation, post-payment success routes, and paid-result entitlement refresh covered by tests; OpenVipDaZhaoActivity pending; VipDifferenceUpgradeActivity pending; other locked-feature payment launchers pending"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.PastExamsPaperListActivity,flutterPage,partial,PastExamsPage,"top-level flat catalog, past-exams entitlement, two-paper free boundary, post-purchase entitlement refresh, and normal exam launch migrated; popup source 1021 and in-place post-payment refresh covered by tests"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.PreExamSecretPaperLandingActivity2,flutterPage,partial,PreExamSecretPaperPage,"recursive leaf catalog, authoritative bitmap three-card landing, VIP gate, popup sources 1011/1012 with skill default, unlock refresh, and normal exam launch covered by tests"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.PreExamSixPaperLandingActivity,flutterPage,partial,PreExamSixPaperLandingPage,"asset-backed landing, attributed VIP full-screen source 1014, injectable unlock override, and confirmed-payment preview transition covered by tests"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.PreExamSixPaperPreviewActivity,flutterPage,complete,PreExamSixPaperPreviewPage,"prefetched and on-demand rich preview, cache download, and Android system share covered by tests"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.PurchaseHistoryActivity,flutterPage,complete,PurchaseHistoryPage,"signed getMyOrder request and endpoint success codes, stable newest-first order cards, empty and error states, pull refresh, and order ID copy covered by tests"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.ReadyLearnActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.SafeCheckActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.ShortVideoActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.SingleVipVideoPlayActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.SkillMnemonicsActivity,flutterPage,complete,SkillMnemonicsPage,page-goods repository and widget tests
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.SkillMnemonicsDetailActivity,flutterPage,complete,SkillMnemonicsDetailPage,"detail, countdown, and practice CTA navigation tests"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.SkillResultActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.SmartCardActivity,flutterPage,partial,SmartCardPage,"authoritative Android assets, page-goods cards, three-card trial boundary, locks, and injectable unlock boundary migrated; popup source 1013 and post-payment entitlement refresh covered by tests"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.SubjectVideoActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.TeacherCoursePlayActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.UnbindActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.VideoPlayActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.VipCourseActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.VipDifferenceUpgradeActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.VipPurchaseSuccessActivity,flutterPage,partial,VipPurchaseSuccessPage,"normal success copy, post-payment benefit refresh, authoritative success asset, teacher customer-service action, Mine-to-Home completion, and source-specific fast/six/secret destinations covered by tests; other source behavior for unmigrated payment launchers pending"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.VipVideoPalyActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.WebViewActivity,flutterPage,partial,AgreementWebViewPage,agreement web content migrated; generic web routes pending
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.activity.WebViewBeforeActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.recommend.ChangePosterActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.recommend.ChangedRecommendActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.recommend.RecommendActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.setting.AccountDetailsSettingActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.setting.AccountSettingActivity,flutterPage,complete,AccountSafetyPage,read-only masked phone and deactivation entry migrated; hidden WeChat and disabled phone actions preserved
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.setting.AccountUnbindSettingActivity,flutterPage,complete,AccountDeactivationPage,"notice, two-stage typed confirmation, exact remote deactivation, legacy session cleanup, and anonymous session refresh covered by tests"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.setting.PrivacySettingActivity,flutterPage,complete,PrivacySettingsPage,personalization preference persistence and privacy policy routing covered by tests
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.cg.ui.setting.SettingActivity,flutterPage,partial,SettingsPage,"notification preference, cache clearing, and privacy and about routing migrated; account safety and deactivation migrated; hidden logout row preserved; JPush runtime pending"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.skit.SelectNumActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.skit.ViewPager2Activity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.ui.FrameLayoutActivity,flutterPage,partial,AboutPage,"app identity, agreement links, store rating, error feedback, and ICP handoff migrated; mock-exam modes pending"
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.ui.OpenVipSuccessActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.ui.exam.EmptyPayActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.ui.learn.ReadyBeforeExamActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.ui.video.AliVideoPlayActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.ui.video.newVideoPlay.NewVideoPlayActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.ui.web.SpeedWebActivity,flutterPage,pending,,
+ultCPA/src/main/AndroidManifest.xml,com.jx885.lrjk.ui.web.WebActivity,flutterPage,partial,LegacyWebViewPage,Mine collect-book route migrated; Mine invite-friends route migrated; generic payment pending; file chooser pending; media pending; share pending; JavaScript callbacks pending
+lib_http_capture/src/main/AndroidManifest.xml,com.levine.http_capture.NetRequestRecordActivity,flutterPage,pending,,
+ModuleLoginAndPay/AndroidManifest.xml,com.mobile.auth.gatewayauth.LoginAuthActivity,sdkManaged,external,,owned by Android plugin or SDK
+ModuleLoginAndPay/AndroidManifest.xml,com.mobile.auth.gatewayauth.activity.AuthWebVeiwActivity,sdkManaged,external,,owned by Android plugin or SDK
+ultCPA/src/main/AndroidManifest.xml,com.xmzj.ult.agg.wxapi.WXEntryActivity,pluginCallback,external,,owned by Android plugin or SDK
+ultCPA/src/main/AndroidManifest.xml,com.xmzj.ult.agg.wxapi.WXPayEntryActivity,pluginCallback,external,,owned by Android plugin or SDK
