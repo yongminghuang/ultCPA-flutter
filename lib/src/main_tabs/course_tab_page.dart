@@ -93,9 +93,14 @@ final class _CourseTabPageState extends State<CourseTabPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(15, 20, 15, 8),
-            child: Text(
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              15,
+              MediaQuery.paddingOf(context).top + 20,
+              15,
+              8,
+            ),
+            child: const Text(
               '跟名师学习',
               style: TextStyle(
                 color: Colors.black,

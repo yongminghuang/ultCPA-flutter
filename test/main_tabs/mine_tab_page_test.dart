@@ -18,7 +18,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('一键登录'), findsOneWidget);
-    expect(find.text('错题巩固'), findsOneWidget);
+    expect(find.text('错题集'), findsOneWidget);
     expect(find.text('我的收藏'), findsOneWidget);
     expect(find.text('邀请好友'), findsNothing);
   });
@@ -33,8 +33,8 @@ void main() {
 
     expect(find.text('考友'), findsOneWidget);
     expect(find.text('13800138000'), findsOneWidget);
-    expect(find.text('12'), findsOneWidget);
-    expect(find.text('3'), findsOneWidget);
+    expect(find.text('共12题'), findsOneWidget);
+    expect(find.text('共3题'), findsOneWidget);
     expect(find.text('邀请好友'), findsOneWidget);
   });
 
@@ -594,7 +594,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      for (final label in const ['AI精准练', '技巧练题', '技巧口诀', '名师课程', '密押试卷']) {
+      for (final label in const [
+        '技巧练题',
+        '速成300\n题',
+        '最后密押\n卷',
+        '技巧口诀',
+        '考前6\n页纸',
+      ]) {
         expect(find.text(label), findsOneWidget);
       }
       expect(find.text('解锁全部学习特权'), findsOneWidget);

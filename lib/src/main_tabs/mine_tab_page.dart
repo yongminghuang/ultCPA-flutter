@@ -116,40 +116,43 @@ final class _MineTabPageState extends State<MineTabPage> {
   Widget build(BuildContext context) {
     if (_loading) {
       return const ColoredBox(
-        color: Color(0xFFF3F7F9),
+        color: Color(0xFFF8FAFD),
         child: Center(child: CircularProgressIndicator()),
       );
     }
     if (_data == null) {
       return ColoredBox(
-        color: const Color(0xFFF3F7F9),
+        color: const Color(0xFFF8FAFD),
         child: _MineLoadFailure(error: _error, onRetry: _load),
       );
     }
-    return RefreshIndicator(
-      onRefresh: _load,
-      color: const Color(0xFF237DED),
-      child: _MineContent(
-        data: _data!,
-        appUpdateBusy: _checkingForUpdate,
-        customerServiceBusy: _openingCustomerService,
-        vipPurchaseBusy: _openingVipPurchase,
-        openingWebRequest: _openingWebRequest,
-        onLoginRequested: widget.onLoginRequested,
-        onAppUpdatePressed: widget.appUpdateLauncher == null
-            ? null
-            : _checkForUpdate,
-        onCustomerServicePressed: widget.customerServiceLauncher == null
-            ? null
-            : _openCustomerService,
-        profileLauncher: widget.profileLauncher,
-        purchaseHistoryLauncher: widget.purchaseHistoryLauncher,
-        reviewLauncher: widget.reviewLauncher,
-        settingsLauncher: widget.settingsLauncher,
-        onVipPurchasePressed: widget.vipPurchaseLauncher == null
-            ? null
-            : _openVipPurchase,
-        onWebPressed: widget.webLauncher == null ? null : _openWeb,
+    return ColoredBox(
+      color: const Color(0xFFF8FAFD),
+      child: RefreshIndicator(
+        onRefresh: _load,
+        color: const Color(0xFF237DED),
+        child: _MineContent(
+          data: _data!,
+          appUpdateBusy: _checkingForUpdate,
+          customerServiceBusy: _openingCustomerService,
+          vipPurchaseBusy: _openingVipPurchase,
+          openingWebRequest: _openingWebRequest,
+          onLoginRequested: widget.onLoginRequested,
+          onAppUpdatePressed: widget.appUpdateLauncher == null
+              ? null
+              : _checkForUpdate,
+          onCustomerServicePressed: widget.customerServiceLauncher == null
+              ? null
+              : _openCustomerService,
+          profileLauncher: widget.profileLauncher,
+          purchaseHistoryLauncher: widget.purchaseHistoryLauncher,
+          reviewLauncher: widget.reviewLauncher,
+          settingsLauncher: widget.settingsLauncher,
+          onVipPurchasePressed: widget.vipPurchaseLauncher == null
+              ? null
+              : _openVipPurchase,
+          onWebPressed: widget.webLauncher == null ? null : _openWeb,
+        ),
       ),
     );
   }
@@ -255,7 +258,7 @@ final class _MineContent extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
       children: [
-        const SizedBox(height: 30),
+        SizedBox(height: MediaQuery.paddingOf(context).top),
         _UserBand(
           data: data,
           onLoginRequested: onLoginRequested,
@@ -270,84 +273,88 @@ final class _MineContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        ColoredBox(
-          color: Colors.white,
-          child: Column(
-            children: [
-              _MenuRow(
-                rowKey: const ValueKey('mine-review-errors'),
-                icon: Icons.fact_check_outlined,
-                label: '错题巩固',
-                count: data.errorCount,
-                onTap: () => _openReview(
-                  context,
-                  MineReviewKind.errors,
-                  data.errorCount,
-                ),
-              ),
-              _MenuRow(
-                rowKey: const ValueKey('mine-review-collections'),
-                icon: Icons.bookmark_border_rounded,
-                label: '我的收藏',
-                count: data.collectionCount,
-                onTap: () => _openReview(
-                  context,
-                  MineReviewKind.collections,
-                  data.collectionCount,
-                ),
-              ),
-              _MenuRow(
-                rowKey: const ValueKey('mine-purchase-history'),
-                icon: Icons.shopping_bag_outlined,
-                label: '我的订单',
-                onTap: () => _openPurchaseHistory(context),
-              ),
-              if (data.collectBookRequest case final request?)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: ColoredBox(
+            color: Colors.white,
+            child: Column(
+              children: [
                 _MenuRow(
-                  rowKey: const ValueKey('mine-collect-book'),
-                  icon: Icons.menu_book_outlined,
-                  label: '领取书籍',
-                  showProgress: identical(openingWebRequest, request),
-                  progressKey: const ValueKey('mine-web-progress'),
-                  onTap: openingWebRequest == null
-                      ? () => _openWeb(context, request)
-                      : null,
+                  rowKey: const ValueKey('mine-review-errors'),
+                  icon: Icons.fact_check_outlined,
+                  label: '错题集',
+                  count: data.errorCount,
+                  onTap: () => _openReview(
+                    context,
+                    MineReviewKind.errors,
+                    data.errorCount,
+                  ),
                 ),
-              if (data.inviteFriendsRequest case final request?)
                 _MenuRow(
-                  rowKey: const ValueKey('mine-invite-friends'),
-                  icon: Icons.ios_share_rounded,
-                  label: '邀请好友',
-                  showProgress: identical(openingWebRequest, request),
-                  progressKey: const ValueKey('mine-web-progress'),
-                  onTap: openingWebRequest == null
-                      ? () => _openWeb(context, request)
-                      : null,
+                  rowKey: const ValueKey('mine-review-collections'),
+                  icon: Icons.bookmark_border_rounded,
+                  label: '我的收藏',
+                  count: data.collectionCount,
+                  onTap: () => _openReview(
+                    context,
+                    MineReviewKind.collections,
+                    data.collectionCount,
+                  ),
                 ),
-              _MenuRow(
-                rowKey: const ValueKey('mine-customer-service'),
-                icon: Icons.headset_mic_outlined,
-                label: '添加客服',
-                showProgress: customerServiceBusy,
-                progressKey: const ValueKey('mine-customer-service-progress'),
-                onTap: customerServiceBusy ? null : onCustomerServicePressed,
-              ),
-              _MenuRow(
-                rowKey: const ValueKey('mine-check-update'),
-                icon: Icons.refresh_rounded,
-                label: '检查更新',
-                onTap: appUpdateBusy ? null : onAppUpdatePressed,
-              ),
-              _MenuRow(
-                rowKey: const ValueKey('mine-settings'),
-                icon: Icons.settings_outlined,
-                label: '设置',
-                showDivider: false,
-                onTap: settingsLauncher == null
-                    ? null
-                    : () => settingsLauncher!(context, data.isLoggedIn),
-              ),
-            ],
+                _MenuRow(
+                  rowKey: const ValueKey('mine-purchase-history'),
+                  icon: Icons.shopping_bag_outlined,
+                  label: '我的订单',
+                  onTap: () => _openPurchaseHistory(context),
+                ),
+                if (data.collectBookRequest case final request?)
+                  _MenuRow(
+                    rowKey: const ValueKey('mine-collect-book'),
+                    icon: Icons.menu_book_outlined,
+                    label: '领取书籍',
+                    showProgress: identical(openingWebRequest, request),
+                    progressKey: const ValueKey('mine-web-progress'),
+                    onTap: openingWebRequest == null
+                        ? () => _openWeb(context, request)
+                        : null,
+                  ),
+                if (data.inviteFriendsRequest case final request?)
+                  _MenuRow(
+                    rowKey: const ValueKey('mine-invite-friends'),
+                    icon: Icons.ios_share_rounded,
+                    label: '邀请好友',
+                    showProgress: identical(openingWebRequest, request),
+                    progressKey: const ValueKey('mine-web-progress'),
+                    onTap: openingWebRequest == null
+                        ? () => _openWeb(context, request)
+                        : null,
+                  ),
+                _MenuRow(
+                  rowKey: const ValueKey('mine-customer-service'),
+                  icon: Icons.headset_mic_outlined,
+                  label: '添加客服',
+                  showProgress: customerServiceBusy,
+                  progressKey: const ValueKey('mine-customer-service-progress'),
+                  onTap: customerServiceBusy ? null : onCustomerServicePressed,
+                ),
+                _MenuRow(
+                  rowKey: const ValueKey('mine-check-update'),
+                  icon: Icons.refresh_rounded,
+                  label: '检查更新',
+                  trailingText: 'V1.2.5',
+                  onTap: appUpdateBusy ? null : onAppUpdatePressed,
+                ),
+                _MenuRow(
+                  rowKey: const ValueKey('mine-settings'),
+                  icon: Icons.settings_outlined,
+                  label: '设置',
+                  showDivider: false,
+                  onTap: settingsLauncher == null
+                      ? null
+                      : () => settingsLauncher!(context, data.isLoggedIn),
+                ),
+              ],
+            ),
           ),
         ),
         const Padding(
@@ -446,26 +453,69 @@ final class _UserBand extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        data.profile.nickname.isEmpty
-                            ? '考友'
-                            : data.profile.nickname,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF111827),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      if (data.profile.phone.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          data.profile.phone,
-                          style: const TextStyle(
-                            color: Color(0xFF6B7280),
-                            fontSize: 13,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              data.profile.nickname.isEmpty
+                                  ? '考友'
+                                  : data.profile.nickname,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF111827),
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.edit_outlined,
+                            size: 16,
+                            color: Color(0xFF9CA3AF),
+                          ),
+                        ],
+                      ),
+                      if (data.profile.phone.isNotEmpty ||
+                          data.profile.userRole == 'creator') ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (data.profile.phone.isNotEmpty)
+                              Flexible(
+                                child: Text(
+                                  data.profile.phone,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7280),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            if (data.profile.userRole == 'creator') ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF191C22),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                                child: const Text(
+                                  '考有招达人',
+                                  style: TextStyle(
+                                    color: Color(0xFFE5C158),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ],
                       if (data.profile.userId.isNotEmpty) ...[
@@ -479,14 +529,27 @@ final class _UserBand extends StatelessWidget {
                             color: const Color(0xFFF3F4F6),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Text(
-                            'ID: ${data.profile.userId}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF9CA3AF),
-                              fontSize: 11,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  'ID: ${data.profile.userId}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFF9CA3AF),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.copy_rounded,
+                                size: 14,
+                                color: Color(0xFF9CA3AF),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -519,8 +582,9 @@ final class _Avatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final fallback = const ColoredBox(
       color: Color(0xFFEFF4FA),
-      child: Center(
-        child: Icon(Icons.person, color: Color(0xFF94A3B8), size: 42),
+      child: Image(
+        image: AssetImage(_MineAssets.defaultAvatar),
+        fit: BoxFit.cover,
       ),
     );
     return ClipOval(
@@ -539,6 +603,10 @@ final class _Avatar extends StatelessWidget {
   }
 }
 
+abstract final class _MineAssets {
+  static const defaultAvatar = 'assets/images/main_tabs/ic_default_avatar.png';
+}
+
 final class _VipFeaturePanel extends StatelessWidget {
   const _VipFeaturePanel({
     required this.purchaseBusy,
@@ -549,21 +617,24 @@ final class _VipFeaturePanel extends StatelessWidget {
   final VoidCallback? onPurchase;
 
   static const _features = [
-    (Icons.bolt_rounded, 'AI精准练'),
-    (Icons.edit_note_rounded, '技巧练题'),
-    (Icons.lightbulb_outline_rounded, '技巧口诀'),
-    (Icons.school_outlined, '名师课程'),
-    (Icons.assignment_rounded, '密押试卷'),
+    (Icons.bolt_rounded, '技巧练题'),
+    (Icons.edit_note_rounded, '速成300\n题'),
+    (Icons.lock_outline_rounded, '最后密押\n卷'),
+    (Icons.style_outlined, '技巧口诀'),
+    (Icons.library_books_outlined, '考前6\n页纸'),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 20, 12, 16),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBF1),
-        border: Border.all(color: const Color(0xFFF1D99A)),
-        borderRadius: BorderRadius.circular(8),
+        gradient: const LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [Color(0xFF111827), Color(0xFF1F2937)],
+        ),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         children: [
@@ -573,27 +644,44 @@ final class _VipFeaturePanel extends StatelessWidget {
                 Expanded(
                   child: Column(
                     children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFFF3D3),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          feature.$1,
-                          size: 21,
-                          color: Color(0xFFB68847),
-                        ),
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: const BoxDecoration(
+                              color: Color(0x26FFFFFF),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              feature.$1,
+                              size: 20,
+                              color: Color(0xFFFFE6B3),
+                            ),
+                          ),
+                          const Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Icon(
+                              Icons.lock_rounded,
+                              size: 12,
+                              color: Color(0xFFD1D5DB),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
                       FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(
                           feature.$2,
+                          textAlign: TextAlign.center,
                           style: const TextStyle(
-                            color: Color(0xFF7B5B32),
-                            fontSize: 11,
+                            color: Color(0xFFFFE6B3),
+                            fontSize: 10,
+                            height: 1.2,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
@@ -603,49 +691,55 @@ final class _VipFeaturePanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          const Divider(height: 1, color: Color(0xFFEED9A9)),
+          const Divider(height: 1, color: Color(0x26FFFFFF)),
+          const SizedBox(height: 14),
           Material(
             key: const ValueKey('mine-vip-purchase'),
             color: Colors.transparent,
             child: InkWell(
               onTap: purchaseBusy ? null : onPurchase,
-              child: SizedBox(
-                height: 42,
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        '解锁全部学习特权',
-                        style: TextStyle(
-                          color: Color(0xFF7B5B32),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+              borderRadius: BorderRadius.circular(24),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      '解锁全部学习特权',
+                      style: TextStyle(color: Color(0xFFFFE6B3), fontSize: 11),
+                    ),
+                  ),
+                  if (purchaseBusy)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 15),
+                      child: SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFFFFD580),
                         ),
                       ),
-                    ),
-                    if (purchaseBusy)
-                      const SizedBox.square(
-                        dimension: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    else ...[
-                      const Text(
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 15,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFFD580), Color(0xFFFFB732)],
+                        ),
+                        borderRadius: BorderRadius.circular(64),
+                      ),
+                      child: const Text(
                         '开通会员',
                         style: TextStyle(
-                          color: Color(0xFFB36B32),
+                          color: Color(0xFF593D00),
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(width: 2),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        size: 19,
-                        color: Color(0xFFB36B32),
-                      ),
-                    ],
-                  ],
-                ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -661,6 +755,7 @@ final class _MenuRow extends StatelessWidget {
     required this.label,
     this.rowKey,
     this.count,
+    this.trailingText,
     this.onTap,
     this.showDivider = true,
     this.showProgress = false,
@@ -671,6 +766,7 @@ final class _MenuRow extends StatelessWidget {
   final String label;
   final Key? rowKey;
   final int? count;
+  final String? trailingText;
   final VoidCallback? onTap;
   final bool showDivider;
   final bool showProgress;
@@ -715,12 +811,20 @@ final class _MenuRow extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (count != null)
+                        if (count != null && count! > 0)
                           Text(
-                            '$count',
+                            '共$count题',
                             style: const TextStyle(
                               color: Color(0xFF9CA3AF),
                               fontSize: 13,
+                            ),
+                          ),
+                        if (trailingText != null)
+                          Text(
+                            trailingText!,
+                            style: const TextStyle(
+                              color: Color(0xFF9CA3AF),
+                              fontSize: 12,
                             ),
                           ),
                         const SizedBox(width: 6),

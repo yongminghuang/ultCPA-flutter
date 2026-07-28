@@ -27,6 +27,7 @@ final class HomeTabPage extends StatefulWidget {
   const HomeTabPage({
     required this.dataSource,
     this.onSelectionChanged,
+    this.onVipSelected,
     this.categorySelectorLauncher,
     this.moduleLauncher,
     this.learningMaterialsSectionBuilder,
@@ -35,6 +36,7 @@ final class HomeTabPage extends StatefulWidget {
 
   final MainTabsDataSource dataSource;
   final VoidCallback? onSelectionChanged;
+  final VoidCallback? onVipSelected;
   final CategorySelectorLauncher? categorySelectorLauncher;
   final HomeModuleLauncher? moduleLauncher;
   final LearningMaterialsSectionBuilder? learningMaterialsSectionBuilder;
@@ -178,6 +180,7 @@ final class _HomeTabPageState extends State<HomeTabPage> {
           child: _HomeContent(
             data: _data!,
             onCategorySelected: _selectCategory,
+            onVipSelected: widget.onVipSelected,
             onSubjectSelected: _selectSubject,
             onModuleSelected: widget.moduleLauncher == null
                 ? null
@@ -202,10 +205,11 @@ final class _HomeTabPageState extends State<HomeTabPage> {
   }
 }
 
-final class _HomeContent extends StatelessWidget {
+final class _HomeContent extends StatefulWidget {
   const _HomeContent({
     required this.data,
     required this.onCategorySelected,
+    required this.onVipSelected,
     required this.onSubjectSelected,
     required this.onModuleSelected,
     required this.learningMaterialsSectionBuilder,
@@ -213,85 +217,105 @@ final class _HomeContent extends StatelessWidget {
 
   final HomeTabData data;
   final VoidCallback onCategorySelected;
+  final VoidCallback? onVipSelected;
   final ValueChanged<CategorySubject> onSubjectSelected;
   final ValueChanged<HomeModule>? onModuleSelected;
   final LearningMaterialsSectionBuilder? learningMaterialsSectionBuilder;
 
   @override
+  State<_HomeContent> createState() => _HomeContentState();
+}
+
+final class _HomeContentState extends State<_HomeContent> {
+  static const _headerSwitchOffset = 120.0;
+  bool _useWhiteHeader = false;
+
+  bool _handleScroll(ScrollNotification notification) {
+    final shouldUseWhiteHeader =
+        notification.metrics.pixels >= _headerSwitchOffset;
+    if (shouldUseWhiteHeader != _useWhiteHeader && mounted) {
+      setState(() => _useWhiteHeader = shouldUseWhiteHeader);
+    }
+    return false;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final data = widget.data;
     final heroModules = data.modules.take(2).toList(growable: false);
-    final gridModules = data.modules.skip(2).toList(growable: false);
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: EdgeInsets.zero,
+    final gridModules = data.modules.skip(2).take(8).toList(growable: false);
+    return Stack(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: _CategoryHeader(
-            label: data.categoryLabel,
-            onSelected: onCategorySelected,
-          ),
-        ),
-        if (data.bannerUrl case final url?) _HomeBanner(url: url),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
-          child: _SubjectHeader(data: data, onSelected: onSubjectSelected),
-        ),
-        if (heroModules.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                for (var index = 0; index < heroModules.length; index++)
-                  Expanded(
-                    child: Align(
-                      child: _HeroModule(
-                        module: heroModules[index],
-                        index: index,
-                        onTap: onModuleSelected == null
-                            ? null
-                            : () => onModuleSelected!(heroModules[index]),
-                      ),
+        NotificationListener<ScrollNotification>(
+          onNotification: _handleScroll,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            children: [
+              _HomeBanner(url: data.bannerUrl),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+                child: _SubjectHeader(
+                  data: data,
+                  onSelected: widget.onSubjectSelected,
+                ),
+              ),
+              if (heroModules.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      for (var index = 0; index < heroModules.length; index++)
+                        Expanded(
+                          child: Align(
+                            child: _HeroModule(
+                              module: heroModules[index],
+                              index: index,
+                              onTap: widget.onModuleSelected == null
+                                  ? null
+                                  : () => widget.onModuleSelected!(
+                                      heroModules[index],
+                                    ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              if (gridModules.isNotEmpty)
+                _HomeModuleGrid(
+                  modules: gridModules,
+                  onModuleSelected: widget.onModuleSelected,
+                )
+              else if (data.modules.isEmpty &&
+                  data.learningMaterialsModule == null)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 72),
+                  child: Center(
+                    child: Text(
+                      '暂无可用模块',
+                      style: TextStyle(color: Color(0xFF9CA3AF)),
                     ),
                   ),
-              ],
-            ),
+                ),
+              if (data.learningMaterialsModule case final module?)
+                if (widget.learningMaterialsSectionBuilder case final builder?)
+                  builder(context, module),
+            ],
           ),
-        if (gridModules.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 20, 8, 24),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final itemWidth = constraints.maxWidth / 4;
-                return Wrap(
-                  children: [
-                    for (final module in gridModules)
-                      SizedBox(
-                        width: itemWidth,
-                        height: 92,
-                        child: _GridModule(
-                          module: module,
-                          onTap: onModuleSelected == null
-                              ? null
-                              : () => onModuleSelected!(module),
-                        ),
-                      ),
-                  ],
-                );
-              },
-            ),
-          )
-        else if (data.modules.isEmpty && data.learningMaterialsModule == null)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 72),
-            child: Center(
-              child: Text('暂无可用模块', style: TextStyle(color: Color(0xFF9CA3AF))),
-            ),
+        ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: _CategoryHeader(
+            label: data.categoryLabel,
+            useWhiteBackground: _useWhiteHeader,
+            onSelected: widget.onCategorySelected,
+            onVipSelected: widget.onVipSelected,
           ),
-        if (data.learningMaterialsModule case final module?)
-          if (learningMaterialsSectionBuilder case final builder?)
-            builder(context, module),
+        ),
       ],
     );
   }
@@ -300,77 +324,203 @@ final class _HomeContent extends StatelessWidget {
 final class _HomeBanner extends StatelessWidget {
   const _HomeBanner({required this.url});
 
-  final String url;
+  final String? url;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 200,
       width: double.infinity,
-      child: Image.network(
-        url,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => const ColoredBox(
-          color: Color(0xFFF1F5F9),
-          child: Center(
-            child: Icon(
-              Icons.image_not_supported_outlined,
-              color: Color(0xFF94A3B8),
-              size: 32,
+      child: url == null || url!.isEmpty
+          ? Image.asset(_MainTabAssets.homeBanner, fit: BoxFit.cover)
+          : Image.network(
+              url!,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) =>
+                  Image.asset(_MainTabAssets.homeBanner, fit: BoxFit.cover),
             ),
-          ),
-        ),
-      ),
     );
   }
 }
 
 final class _CategoryHeader extends StatelessWidget {
-  const _CategoryHeader({required this.label, required this.onSelected});
+  const _CategoryHeader({
+    required this.label,
+    required this.useWhiteBackground,
+    required this.onSelected,
+    required this.onVipSelected,
+  });
 
   final String label;
+  final bool useWhiteBackground;
   final VoidCallback onSelected;
+  final VoidCallback? onVipSelected;
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          key: const ValueKey('home-category-selector'),
-          onTap: onSelected,
-          borderRadius: BorderRadius.circular(4),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF1F2937),
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
+    final foreground = useWhiteBackground
+        ? const Color(0xFF1F2937)
+        : Colors.white;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 140),
+      color: useWhiteBackground ? Colors.white : Colors.transparent,
+      padding: EdgeInsets.fromLTRB(
+        12,
+        MediaQuery.paddingOf(context).top + 20,
+        12,
+        10,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Material(
+              key: const ValueKey('home-category-selector'),
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onSelected,
+                borderRadius: BorderRadius.circular(4),
+                child: Row(
+                  children: [
+                    Image.asset(
+                      _MainTabAssets.heroMenu,
+                      width: 25,
+                      height: 25,
+                      color: foreground,
+                      colorBlendMode: BlendMode.srcIn,
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: foreground,
+                          fontSize: 20,
+                          height: 1,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 5),
-                const Icon(
-                  Icons.menu_rounded,
-                  size: 22,
-                  color: Color(0xFF4B5563),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+          const SizedBox(width: 8),
+          Material(
+            key: const ValueKey('home-vip-purchase'),
+            color: const Color(0xFFE51C24),
+            borderRadius: BorderRadius.circular(18),
+            child: InkWell(
+              onTap: onVipSelected,
+              borderRadius: BorderRadius.circular(18),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Text(
+                  '开通会员',
+                  style: TextStyle(color: Colors.white, fontSize: 13),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
+}
+
+final class _HomeModuleGrid extends StatelessWidget {
+  const _HomeModuleGrid({
+    required this.modules,
+    required this.onModuleSelected,
+  });
+
+  final List<HomeModule> modules;
+  final ValueChanged<HomeModule>? onModuleSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final firstRow = modules.take(4).toList(growable: false);
+    final secondRow = modules.skip(4).take(4).toList(growable: false);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 20, 8, 20),
+      child: Column(
+        children: [
+          _ModuleRow(
+            modules: firstRow,
+            slotOffset: 0,
+            compact: false,
+            onModuleSelected: onModuleSelected,
+          ),
+          if (secondRow.isNotEmpty) ...[
+            const SizedBox(height: 21),
+            _ModuleRow(
+              modules: secondRow,
+              slotOffset: 4,
+              compact: true,
+              onModuleSelected: onModuleSelected,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+final class _ModuleRow extends StatelessWidget {
+  const _ModuleRow({
+    required this.modules,
+    required this.slotOffset,
+    required this.compact,
+    required this.onModuleSelected,
+  });
+
+  final List<HomeModule> modules;
+  final int slotOffset;
+  final bool compact;
+  final ValueChanged<HomeModule>? onModuleSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < 4; index++)
+          Expanded(
+            child: index < modules.length
+                ? _GridModule(
+                    module: modules[index],
+                    slotIndex: slotOffset + index,
+                    compact: compact,
+                    onTap: onModuleSelected == null
+                        ? null
+                        : () => onModuleSelected!(modules[index]),
+                  )
+                : const SizedBox.shrink(),
+          ),
+      ],
+    );
+  }
+}
+
+abstract final class _MainTabAssets {
+  static const _root = 'assets/images/main_tabs';
+  static const homeBanner = '$_root/home_banner_default.png';
+  static const heroMenu = '$_root/ic_hero_menu_white.png';
+  static const heroTips = '$_root/ic_home_r1c1_tips.png';
+  static const heroPractice = '$_root/ic_home_r1c2_practice.png';
+  static const hot = '$_root/ic_home_fire.png';
+  static const gridIcons = [
+    '$_root/ic_home_r2c1_quick300.png',
+    '$_root/ic_home_r2c4_card.png',
+    '$_root/ic_home_r3c1_exam.png',
+    '$_root/ic_home_r2c2_chapter.png',
+    '$_root/ic_home_r3c2_wrong.png',
+    '$_root/ic_home_r3c3.png',
+    '$_root/ic_home_r3c4_daily.png',
+    '$_root/ic_home_r3c5_video.png',
+  ];
 }
 
 final class _SubjectHeader extends StatelessWidget {
@@ -450,8 +600,8 @@ final class _HeroModule extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = index.isEven
-        ? const Color(0xFFF6830D)
-        : const Color(0xFF237DED);
+        ? const Color(0xFFF49D3D)
+        : const Color(0xFF2E7CF6);
     return SizedBox(
       width: 132,
       height: 133,
@@ -470,7 +620,14 @@ final class _HeroModule extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(_moduleIcon(module), size: 40, color: Colors.white),
+                    Image.asset(
+                      index.isEven
+                          ? _MainTabAssets.heroTips
+                          : _MainTabAssets.heroPractice,
+                      width: 40,
+                      height: 42,
+                      fit: BoxFit.contain,
+                    ),
                     const SizedBox(height: 7),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -490,8 +647,12 @@ final class _HeroModule extends StatelessWidget {
               ),
             ),
           ),
-          if (module.isHot)
-            const Positioned(right: 4, top: 5, child: _HotBadge()),
+          if (module.tag.trim().isNotEmpty)
+            Positioned(
+              right: -2,
+              top: -3,
+              child: _ModuleBadge(tag: module.tag, hero: true),
+            ),
         ],
       ),
     );
@@ -499,9 +660,16 @@ final class _HeroModule extends StatelessWidget {
 }
 
 final class _GridModule extends StatelessWidget {
-  const _GridModule({required this.module, required this.onTap});
+  const _GridModule({
+    required this.module,
+    required this.slotIndex,
+    required this.compact,
+    required this.onTap,
+  });
 
   final HomeModule module;
+  final int slotIndex;
+  final bool compact;
   final VoidCallback? onTap;
 
   @override
@@ -518,24 +686,21 @@ final class _GridModule extends StatelessWidget {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: _moduleColor(module).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    _moduleIcon(module),
-                    size: 24,
-                    color: _moduleColor(module),
-                  ),
+                Image.asset(
+                  _MainTabAssets.gridIcons[slotIndex],
+                  width: compact ? 24 : 40,
+                  height: compact ? 24 : 40,
+                  fit: BoxFit.contain,
                 ),
-                if (module.isHot)
-                  const Positioned(right: -12, top: -8, child: _HotBadge()),
+                if (module.tag.trim().isNotEmpty)
+                  Positioned(
+                    right: compact ? -1 : -2,
+                    top: compact ? -2 : -3,
+                    child: _ModuleBadge(tag: module.tag, compact: compact),
+                  ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
@@ -543,7 +708,10 @@ final class _GridModule extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF33333D), fontSize: 12),
+                style: TextStyle(
+                  color: const Color(0xFF33333D),
+                  fontSize: compact ? 11 : 12,
+                ),
               ),
             ),
           ],
@@ -553,22 +721,41 @@ final class _GridModule extends StatelessWidget {
   }
 }
 
-final class _HotBadge extends StatelessWidget {
-  const _HotBadge();
+final class _ModuleBadge extends StatelessWidget {
+  const _ModuleBadge({
+    required this.tag,
+    this.compact = false,
+    this.hero = false,
+  });
+
+  final String tag;
+  final bool compact;
+  final bool hero;
 
   @override
   Widget build(BuildContext context) {
+    if (tag.trim().toLowerCase() == 'hot') {
+      return Image.asset(_MainTabAssets.hot, width: 11, height: 12);
+    }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      constraints: const BoxConstraints(maxWidth: 42),
+      padding: EdgeInsets.symmetric(
+        horizontal: 2,
+        vertical: hero ? 2 : (compact ? 0 : 0.5),
+      ),
       decoration: BoxDecoration(
         color: const Color(0xFFEC563D),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(hero ? 6 : 3),
       ),
-      child: const Text(
-        'HOT',
+      child: Text(
+        tag.trim(),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
         style: TextStyle(
           color: Colors.white,
-          fontSize: 9,
+          fontSize: hero ? 11 : (compact ? 7 : 8),
+          height: 1,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -625,40 +812,4 @@ final class _LoadFailure extends StatelessWidget {
       ),
     );
   }
-}
-
-IconData _moduleIcon(HomeModule module) {
-  final text = '${module.page} ${module.name}'.toLowerCase();
-  if (text.contains('mnemonic') || text.contains('口诀')) {
-    return Icons.lightbulb_outline_rounded;
-  }
-  if (text.contains('practice') || text.contains('练题')) {
-    return Icons.edit_note_rounded;
-  }
-  if (text.contains('chapter') || text.contains('章节')) {
-    return Icons.menu_book_rounded;
-  }
-  if (text.contains('exam') || text.contains('真题') || text.contains('密押')) {
-    return Icons.assignment_rounded;
-  }
-  if (text.contains('card') || text.contains('卡片')) {
-    return Icons.style_rounded;
-  }
-  if (text.contains('video') || text.contains('讲解')) {
-    return Icons.play_circle_outline_rounded;
-  }
-  if (text.contains('error') || text.contains('错题')) {
-    return Icons.fact_check_outlined;
-  }
-  return Icons.school_outlined;
-}
-
-Color _moduleColor(HomeModule module) {
-  const colors = [
-    Color(0xFF237DED),
-    Color(0xFFF6830D),
-    Color(0xFF18A765),
-    Color(0xFFEC563D),
-  ];
-  return colors[module.id.abs() % colors.length];
 }

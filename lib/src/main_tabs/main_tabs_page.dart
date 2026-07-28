@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../authentication/phone_login_page.dart';
@@ -58,6 +60,9 @@ final class _MainTabsPageState extends State<MainTabsPage> {
     return HomeTabPage(
       dataSource: widget.dataSource,
       onSelectionChanged: _handleSelectionChanged,
+      onVipSelected: widget.mineVipPurchaseLauncher == null
+          ? null
+          : () => unawaited(_openVipPurchaseFromHome()),
       moduleLauncher: widget.moduleLauncher,
       learningMaterialsSectionBuilder: widget.learningMaterialsSectionBuilder,
     );
@@ -124,6 +129,17 @@ final class _MainTabsPageState extends State<MainTabsPage> {
     return result;
   }
 
+  Future<void> _openVipPurchaseFromHome() async {
+    final launcher = widget.mineVipPurchaseLauncher;
+    if (launcher == null) return;
+    final result = await launcher(context);
+    if (!mounted || result != VipPurchaseResult.paid) return;
+    setState(() {
+      _mineReloadToken += 1;
+      if (_pages[2] != null) _pages[2] = _buildMinePage();
+    });
+  }
+
   Future<void> _loginFromMine() async {
     if (_openingLogin) return;
     _openingLogin = true;
@@ -145,14 +161,11 @@ final class _MainTabsPageState extends State<MainTabsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        bottom: false,
-        child: IndexedStack(
-          index: _selectedIndex,
-          children: _pages
-              .map((page) => page ?? const SizedBox.expand())
-              .toList(growable: false),
-        ),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _pages
+            .map((page) => page ?? const SizedBox.expand())
+            .toList(growable: false),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
@@ -164,24 +177,33 @@ final class _MainTabsPageState extends State<MainTabsPage> {
         selectedFontSize: 12,
         unselectedFontSize: 12,
         elevation: 8,
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.auto_stories_outlined),
-            activeIcon: Icon(Icons.auto_stories),
+            icon: _navigationIcon('ic_home_main_unselected.png'),
+            activeIcon: _navigationIcon('ic_home_main_selected.png'),
             label: '技巧练题',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.play_circle_outline),
-            activeIcon: Icon(Icons.play_circle_fill),
+            icon: _navigationIcon('ic_home_short_unselected.png'),
+            activeIcon: _navigationIcon('ic_home_short_selected.png'),
             label: '技巧课程',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
+            icon: _navigationIcon('ic_home_mine_unselected.png'),
+            activeIcon: _navigationIcon('ic_home_mine_selected.png'),
             label: '我的',
           ),
         ],
       ),
     );
   }
+}
+
+Widget _navigationIcon(String fileName) {
+  return Image.asset(
+    'assets/images/main_tabs/$fileName',
+    width: 25,
+    height: 25,
+    fit: BoxFit.contain,
+  );
 }
