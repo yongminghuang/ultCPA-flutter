@@ -3,6 +3,7 @@ import '../chapter_practice/chapter_practice_repository.dart';
 import '../main_tabs/main_tabs_models.dart';
 import '../network/app_api_client.dart';
 import '../skill_mnemonics/skill_mnemonics_entitlement.dart';
+import '../skill_mnemonics/skill_mnemonics_models.dart';
 import '../storage/legacy_app_state_store.dart';
 import 'practice_benefit_kind.dart';
 import 'practice_models.dart';
@@ -133,6 +134,21 @@ abstract interface class PracticeDataSource {
   Future<bool> recordWrongQuestionCorrect(PracticeQuestion question);
 }
 
+abstract interface class PracticeMaintenanceDataSource {
+  Future<void> clearPracticeRecords();
+
+  Future<void> submitCorrection({
+    required PracticeQuestion question,
+    required int serialNumber,
+    required int type,
+    required String content,
+  });
+}
+
+abstract interface class PracticeSkillExplanationDataSource {
+  Future<List<SkillMnemonic>> loadSkillsForQuestion(String questionId);
+}
+
 final class ErrorPracticeAvailability {
   const ErrorPracticeAvailability({
     required this.requiresLogin,
@@ -145,7 +161,11 @@ final class ErrorPracticeAvailability {
   bool get hasQuestions => !requiresLogin && total > 0;
 }
 
-final class PracticeRepository implements PracticeDataSource {
+final class PracticeRepository
+    implements
+        PracticeDataSource,
+        PracticeMaintenanceDataSource,
+        PracticeSkillExplanationDataSource {
   PracticeRepository({
     required AppApiClient api,
     required LegacyAppStateStore stateStore,
@@ -339,6 +359,66 @@ final class PracticeRepository implements PracticeDataSource {
       name: 'question.wrongCountId',
     );
     return _reviewStore.recordWrongQuestionCorrect(countId.toString());
+  }
+
+  @override
+  Future<void> clearPracticeRecords() async {
+    final selection = await _selectedReviewContext();
+    await _api.postBody('/app/question/deleteQuestionRecord', {
+      'questionIds': const <int>[],
+      'subject': selection.subject,
+      'level': selection.level,
+      'type': 1,
+    });
+  }
+
+  @override
+  Future<void> submitCorrection({
+    required PracticeQuestion question,
+    required int serialNumber,
+    required int type,
+    required String content,
+  }) async {
+    final text = content.trim();
+    if (text.isEmpty) {
+      throw ArgumentError.value(content, 'content', '不能为空');
+    }
+    if (type != 1 && type != 2 && type != 3 && type != 4 && type != 99) {
+      throw ArgumentError.value(type, 'type', '不支持的纠错类型');
+    }
+    final snapshot = await _stateStore.readAppSnapshot();
+    await _api.postBody('/app/questionCorrect/createCorrectItem', {
+      'carType': _positiveInteger(snapshot['selectedLevel'], 1),
+      'course': _positiveInteger(snapshot['selectedSubject'], 1),
+      'type': type,
+      'questionId': question.id,
+      'content': text,
+      'userId': snapshot['userId']?.toString() ?? '',
+      'serialNumber': serialNumber < 1 ? 1 : serialNumber,
+      'images': const <String>[],
+      'mobile': snapshot['phone']?.toString() ?? '',
+    });
+  }
+
+  @override
+  Future<List<SkillMnemonic>> loadSkillsForQuestion(String questionId) async {
+    final id = _positiveQuestionId(questionId);
+    final body = await _api.getBody(
+      '/knowledge/skill/querySkillsByQuestion',
+      queryParameters: {'questionId': id},
+    );
+    if (body is! List) {
+      throw const FormatException('题目关联技巧响应不是数组');
+    }
+    final skills = <SkillMnemonic>[];
+    for (final value in body) {
+      if (value is! Map) continue;
+      final skill = SkillMnemonic.fromMap(Map<String, dynamic>.from(value));
+      if (skill.skillId.isNotEmpty || skill.displayText.trim().isNotEmpty) {
+        skills.add(skill);
+      }
+    }
+    return List.unmodifiable(skills);
   }
 
   Future<({String subject, String level})> _selectedReviewContext() async {
@@ -727,6 +807,13 @@ final class PracticeRepository implements PracticeDataSource {
     }
     return List.unmodifiable(items);
   }
+}
+
+int _positiveInteger(Object? value, int fallback) {
+  final parsed = value is num
+      ? value.toInt()
+      : int.tryParse(value?.toString() ?? '') ?? fallback;
+  return parsed > 0 ? parsed : fallback;
 }
 
 int _positiveQuestionId(String value, {String name = 'question.id'}) {

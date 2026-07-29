@@ -6,6 +6,7 @@ import '../main_tabs/main_tabs_models.dart';
 import '../practice/flat_practice_progress_store.dart';
 import '../practice/practice_page.dart';
 import '../practice/practice_repository.dart';
+import '../practice/practice_settings_store.dart';
 import 'fast_practice_models.dart';
 import 'fast_practice_repository.dart';
 
@@ -19,6 +20,8 @@ final class FastPracticeCatalogPage extends StatefulWidget {
     this.practiceDataSource,
     this.practiceLauncher,
     this.flatProgressStore = const DisabledFlatPracticeProgressStore(),
+    this.settingsStore = const DisabledPracticeSettingsStore(),
+    this.paymentLauncher,
     super.key,
   }) : assert(practiceDataSource != null || practiceLauncher != null);
 
@@ -27,6 +30,8 @@ final class FastPracticeCatalogPage extends StatefulWidget {
   final PracticeDataSource? practiceDataSource;
   final FastPracticeLauncher? practiceLauncher;
   final FlatPracticeProgressStore flatProgressStore;
+  final PracticeSettingsStore settingsStore;
+  final PracticePaymentLauncher? paymentLauncher;
 
   @override
   State<FastPracticeCatalogPage> createState() =>
@@ -189,6 +194,8 @@ final class _FastPracticeCatalogPageState
           request: request,
           dataSource: widget.practiceDataSource!,
           flatProgressStore: widget.flatProgressStore,
+          settingsStore: widget.settingsStore,
+          paymentLauncher: widget.paymentLauncher,
         ),
       ),
     );

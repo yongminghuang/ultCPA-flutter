@@ -187,7 +187,9 @@ const _reviewedProgress = <String, ActivityMigrationProgress>{
         'chapter migrated; speed-practice leaf loading and flat position '
         'persistence migrated; daily local restore, daily answer persistence, '
         'completion, and daily report routing migrated; exams, course, '
-        'promotion/payment, audio, and correction modes pending',
+        'promotion practice UI/payment, media explanation playback, and text '
+        'correction migrated; exams, course, and correction image attachments '
+        'pending',
   ),
   'com.jx885.lrjk.cg.learn.LearnActivityExam': ActivityMigrationProgress(
     status: ActivityMigrationStatus.partial,

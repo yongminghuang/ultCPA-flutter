@@ -69,6 +69,7 @@ export 'src/practice/practice_repository.dart';
 export 'src/practice/practice_review_store.dart';
 export 'src/practice/practice_result_page.dart';
 export 'src/practice/practice_session.dart';
+export 'src/practice/practice_settings_store.dart';
 export 'src/past_exams/past_exams_models.dart';
 export 'src/past_exams/past_exams_page.dart';
 export 'src/past_exams/past_exams_repository.dart';

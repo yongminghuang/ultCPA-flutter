@@ -54,6 +54,7 @@ final class _MainTabsPageState extends State<MainTabsPage> {
   int _mineReloadToken = 0;
   int _selectionRevision = 0;
   bool _openingLogin = false;
+  bool _openingHomeVipPurchase = false;
   late final List<Widget?> _pages = [_buildHomePage(), null, null];
 
   HomeTabPage _buildHomePage() {
@@ -131,13 +132,18 @@ final class _MainTabsPageState extends State<MainTabsPage> {
 
   Future<void> _openVipPurchaseFromHome() async {
     final launcher = widget.mineVipPurchaseLauncher;
-    if (launcher == null) return;
-    final result = await launcher(context);
-    if (!mounted || result != VipPurchaseResult.paid) return;
-    setState(() {
-      _mineReloadToken += 1;
-      if (_pages[2] != null) _pages[2] = _buildMinePage();
-    });
+    if (launcher == null || _openingHomeVipPurchase) return;
+    _openingHomeVipPurchase = true;
+    try {
+      final result = await launcher(context);
+      if (!mounted || result != VipPurchaseResult.paid) return;
+      setState(() {
+        _mineReloadToken += 1;
+        if (_pages[2] != null) _pages[2] = _buildMinePage();
+      });
+    } finally {
+      _openingHomeVipPurchase = false;
+    }
   }
 
   Future<void> _loginFromMine() async {

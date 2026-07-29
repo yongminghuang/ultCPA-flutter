@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../account_profile/account_profile_models.dart';
+import '../config/app_identity.dart';
 import '../vip_purchase/vip_purchase_models.dart';
 import '../web/legacy_webview_page.dart';
 import 'main_tabs_models.dart';
@@ -341,7 +342,7 @@ final class _MineContent extends StatelessWidget {
                   rowKey: const ValueKey('mine-check-update'),
                   icon: Icons.refresh_rounded,
                   label: '检查更新',
-                  trailingText: 'V1.2.5',
+                  trailingText: 'V${AppIdentity.versionName}',
                   onTap: appUpdateBusy ? null : onAppUpdatePressed,
                 ),
                 _MenuRow(

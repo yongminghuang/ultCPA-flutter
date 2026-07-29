@@ -50,6 +50,7 @@ import '../network/method_channel_request_context.dart';
 import '../practice/practice_page.dart';
 import '../practice/flat_practice_progress_store.dart';
 import '../practice/practice_repository.dart';
+import '../practice/practice_settings_store.dart';
 import '../past_exams/past_exams_page.dart';
 import '../past_exams/past_exams_repository.dart';
 import '../pre_exam_six_paper/pre_exam_six_paper_entry_page.dart';
@@ -245,6 +246,7 @@ final class _StartupAppState extends State<StartupApp>
   late final FastPracticeDataSource _fastPracticeDataSource;
   late final FlatPracticeProgressStore _flatPracticeProgressStore;
   late final PracticeDataSource _practiceDataSource;
+  late final PracticeSettingsStore _practiceSettingsStore;
   late final PreExamSixPaperDataSource _preExamSixPaperDataSource;
   late final PreExamSixPaperFileTransfer _preExamSixPaperFileTransfer;
   late final PreExamSecretPaperDataSource _preExamSecretPaperDataSource;
@@ -273,6 +275,7 @@ final class _StartupAppState extends State<StartupApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     final requestContext = MethodChannelRequestContext();
+    _practiceSettingsStore = requestContext;
     final dio = Dio(
       BaseOptions(
         connectTimeout: const Duration(seconds: 10),
@@ -557,6 +560,9 @@ final class _StartupAppState extends State<StartupApp>
                 bigSkillCircleModule: bigSkillCircleModule,
               ),
               dataSource: _practiceDataSource,
+              settingsStore: _practiceSettingsStore,
+              customerServiceLauncher: () => _openCustomerService(context),
+              paymentLauncher: _openPracticePayment,
             ),
           ),
         );
@@ -568,6 +574,14 @@ final class _StartupAppState extends State<StartupApp>
               dataSource: _chapterPracticeDataSource,
               progressStore: _chapterPracticeProgressStore,
               practiceDataSource: _practiceDataSource,
+              settingsStore: _practiceSettingsStore,
+              paymentLauncher: _openPracticePayment,
+              onUnlock: (unlockContext) async =>
+                  await _openPracticePayment(
+                    unlockContext,
+                    VipPaymentSource.chapterOrPastExamsUnlock,
+                  ) ==
+                  VipPurchaseResult.paid,
             ),
           ),
         );
@@ -579,6 +593,8 @@ final class _StartupAppState extends State<StartupApp>
               dataSource: _fastPracticeDataSource,
               practiceDataSource: _practiceDataSource,
               flatProgressStore: _flatPracticeProgressStore,
+              settingsStore: _practiceSettingsStore,
+              paymentLauncher: _openPracticePayment,
               onUnlock:
                   widget.fastPracticeUnlockLauncher ??
                   () => _openVipPaySheet(context, VipPayEntry.fast300),
@@ -766,6 +782,8 @@ final class _StartupAppState extends State<StartupApp>
           dataSource: _practiceDataSource,
           dailySkillProgressStore: _dailySkillProgressStore,
           dailySkillReportLauncher: _openDailySkillReport,
+          settingsStore: _practiceSettingsStore,
+          paymentLauncher: _openPracticePayment,
         ),
       ),
     );
@@ -835,6 +853,8 @@ final class _StartupAppState extends State<StartupApp>
         builder: (_) => PracticePage(
           request: const ErrorPracticeRequest(),
           dataSource: _practiceDataSource,
+          settingsStore: _practiceSettingsStore,
+          paymentLauncher: _openPracticePayment,
         ),
       ),
     );
@@ -873,6 +893,8 @@ final class _StartupAppState extends State<StartupApp>
             module: module,
           ),
           dataSource: _practiceDataSource,
+          settingsStore: _practiceSettingsStore,
+          paymentLauncher: _openPracticePayment,
         ),
       ),
     );
@@ -957,8 +979,12 @@ final class _StartupAppState extends State<StartupApp>
     };
     return Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (_) =>
-            PracticePage(request: request, dataSource: _practiceDataSource),
+        builder: (_) => PracticePage(
+          request: request,
+          dataSource: _practiceDataSource,
+          settingsStore: _practiceSettingsStore,
+          paymentLauncher: _openPracticePayment,
+        ),
       ),
     );
   }
@@ -978,18 +1004,14 @@ final class _StartupAppState extends State<StartupApp>
     );
   }
 
-  Future<VipPurchaseResult?> _openHomeVipPurchase(
-    BuildContext context,
-  ) async {
+  Future<VipPurchaseResult?> _openHomeVipPurchase(BuildContext context) async {
     if (_vipPaymentInFlight) return null;
     _vipPaymentInFlight = true;
     try {
       final result = await Navigator.of(context).push<VipPurchaseResult>(
         MaterialPageRoute<VipPurchaseResult>(
           builder: (_) => VipPurchasePage(
-            request: VipPurchaseRequest.source(
-              source: VipPaymentSource.home,
-            ),
+            request: VipPurchaseRequest.source(source: VipPaymentSource.home),
             dataSource: _vipPurchaseDataSource,
             paymentGateway: _vipPaymentGateway,
             loginLauncher: _openVipLogin,
@@ -1031,6 +1053,51 @@ final class _StartupAppState extends State<StartupApp>
           loginLauncher: _openVipLogin,
           agreementLauncher: _openVipAgreement,
           customerServiceLauncher: _openCustomerService,
+        );
+      }
+      if (result == VipPurchaseResult.paid && mounted) {
+        setState(() => _mainTabsRevision += 1);
+      }
+      return result;
+    } finally {
+      _vipPaymentInFlight = false;
+    }
+  }
+
+  Future<VipPurchaseResult?> _openPracticePayment(
+    BuildContext context,
+    VipPaymentSource source,
+  ) async {
+    if (_vipPaymentInFlight || !context.mounted) return null;
+    _vipPaymentInFlight = true;
+    try {
+      final request = VipPurchaseRequest.source(
+        source: source,
+        defaultProductType: VipProductType.skill,
+      );
+      final VipPurchaseResult? result;
+      if (source.presentation == VipPaymentPresentation.sheet) {
+        result = await showVipPaySheet(
+          context,
+          request: request,
+          dataSource: _vipPurchaseDataSource,
+          paymentGateway: _vipPaymentGateway,
+          loginLauncher: _openVipLogin,
+          agreementLauncher: _openVipAgreement,
+          customerServiceLauncher: _openCustomerService,
+        );
+      } else {
+        result = await Navigator.of(context).push<VipPurchaseResult>(
+          MaterialPageRoute<VipPurchaseResult>(
+            builder: (_) => VipPurchasePage(
+              request: request,
+              dataSource: _vipPurchaseDataSource,
+              paymentGateway: _vipPaymentGateway,
+              loginLauncher: _openVipLogin,
+              customerServiceLauncher: _openCustomerService,
+              agreementLauncher: _openVipAgreement,
+            ),
+          ),
         );
       }
       if (result == VipPurchaseResult.paid && mounted) {

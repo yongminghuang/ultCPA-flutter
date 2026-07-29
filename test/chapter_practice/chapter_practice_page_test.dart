@@ -103,7 +103,7 @@ void main() {
     );
   });
 
-  testWidgets('locked groups report unlock migration and never launch', (
+  testWidgets('locked groups report the membership gate and never launch', (
     tester,
   ) async {
     final launched = <ChapterPracticeRequest>[];
@@ -115,8 +115,31 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('chapter-practice-group-2')));
     await tester.pump();
 
-    expect(find.text('章节练习需解锁，会员与支付功能仍在迁移中'), findsOneWidget);
+    expect(find.text('章节练习需解锁，请开通会员后继续'), findsOneWidget);
     expect(launched, isEmpty);
+  });
+
+  testWidgets('locked groups open payment and reload after purchase', (
+    tester,
+  ) async {
+    var unlockCalls = 0;
+    final source = _Source((_) async => _catalog);
+    await tester.pumpWidget(
+      _app(
+        source: source,
+        onUnlock: (_) async {
+          unlockCalls += 1;
+          return true;
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('chapter-practice-group-2')));
+    await tester.pumpAndSettle();
+
+    expect(unlockCalls, 1);
+    expect(source.loadCount, 2);
   });
 
   testWidgets('in-progress chapter resumes and refreshes after return', (
@@ -192,6 +215,7 @@ Widget _app({
   ChapterPracticeDataSource? source,
   ChapterPracticeProgressStore? progressStore,
   ChapterPracticeLauncher? launcher,
+  ChapterPracticeUnlockLauncher? onUnlock,
 }) {
   return MaterialApp(
     home: ChapterPracticePage(
@@ -199,6 +223,7 @@ Widget _app({
       dataSource: source ?? _Source((_) async => _catalog),
       progressStore: progressStore ?? _ProgressStore(expandedCatalog: 0),
       practiceLauncher: launcher ?? (_, _) async {},
+      onUnlock: onUnlock,
     ),
   );
 }

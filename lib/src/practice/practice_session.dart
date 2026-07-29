@@ -52,10 +52,12 @@ final class PracticeSession {
   final Map<String, Set<String>> _drafts = {};
   final Map<String, bool> _collected = {};
   final Set<String> _newlySubmittedIds = {};
+  bool _grantedFullAccess = false;
   int _currentIndex = 0;
 
   int get currentIndex => _currentIndex;
   List<PracticeItem> get items => List.unmodifiable(_items);
+  bool get hasFullAccess => access.fullAccess || _grantedFullAccess;
 
   PracticeItem? get currentItem {
     if (_currentIndex < 0 || _currentIndex >= _items.length) return null;
@@ -199,6 +201,10 @@ final class PracticeSession {
     _currentIndex = 0;
   }
 
+  void grantFullAccess() {
+    _grantedFullAccess = true;
+  }
+
   PracticeTransition _submit(PracticeQuestion question, String choose) {
     final answer = PracticeAnswer(
       choose: choose,
@@ -211,7 +217,7 @@ final class PracticeSession {
   }
 
   bool _isLocked(PracticeQuestion question) {
-    if (_answers.containsKey(question.id) || access.fullAccess) return false;
+    if (_answers.containsKey(question.id) || hasFullAccess) return false;
     final freeQuestionCount = access.freeQuestionCount < 0
         ? 0
         : access.freeQuestionCount;

@@ -63,6 +63,28 @@ void main() {
     expect(find.text('技巧圈题卷'), findsNothing);
   });
 
+  testWidgets('keeps the Android category header fixed and turns it white', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(400, 300));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeTabPage(dataSource: _DataSource((_, _) async => _homeData)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final header = find.byKey(const ValueKey('home-category-header'));
+    final initialTop = tester.getTopLeft(header).dy;
+    await tester.drag(find.byType(ListView).first, const Offset(0, -180));
+    await tester.pumpAndSettle();
+
+    expect(tester.getTopLeft(header).dy, initialTop);
+    final container = tester.widget<AnimatedContainer>(header);
+    expect((container.decoration! as BoxDecoration).color, Colors.white);
+  });
+
   testWidgets('renders learning materials through its dedicated section', (
     tester,
   ) async {

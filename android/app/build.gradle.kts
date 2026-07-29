@@ -1,20 +1,32 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val localSigningProperties = Properties().apply {
+    val propertiesFile = rootProject.file("key.properties")
+    if (propertiesFile.exists()) {
+        propertiesFile.inputStream().use(::load)
+    }
+}
 val signingValues = mapOf(
-    "path" to System.getenv("ULTCPA_KEYSTORE_PATH"),
-    "storePassword" to System.getenv("ULTCPA_KEYSTORE_PASSWORD"),
-    "keyAlias" to System.getenv("ULTCPA_KEY_ALIAS"),
-    "keyPassword" to System.getenv("ULTCPA_KEY_PASSWORD"),
+    "path" to (localSigningProperties.getProperty("storeFile")
+        ?: System.getenv("ULTCPA_KEYSTORE_PATH")),
+    "storePassword" to (localSigningProperties.getProperty("storePassword")
+        ?: System.getenv("ULTCPA_KEYSTORE_PASSWORD")),
+    "keyAlias" to (localSigningProperties.getProperty("keyAlias")
+        ?: System.getenv("ULTCPA_KEY_ALIAS")),
+    "keyPassword" to (localSigningProperties.getProperty("keyPassword")
+        ?: System.getenv("ULTCPA_KEY_PASSWORD")),
 )
 val hasLegacySigning = signingValues.values.all { !it.isNullOrBlank() }
 
 android {
     namespace = "com.xmzj.ult.agg"
-    compileSdk = 35
+    compileSdk = 36
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -84,9 +96,9 @@ gradle.taskGraph.whenReady {
     }
     if (releaseRequested && !hasLegacySigning) {
         throw GradleException(
-            "Release signing requires ULTCPA_KEYSTORE_PATH, " +
-                "ULTCPA_KEYSTORE_PASSWORD, ULTCPA_KEY_ALIAS, and " +
-                "ULTCPA_KEY_PASSWORD",
+            "Release signing requires android/key.properties or the " +
+                "ULTCPA_KEYSTORE_PATH, ULTCPA_KEYSTORE_PASSWORD, " +
+                "ULTCPA_KEY_ALIAS, and ULTCPA_KEY_PASSWORD environment variables",
         )
     }
 }

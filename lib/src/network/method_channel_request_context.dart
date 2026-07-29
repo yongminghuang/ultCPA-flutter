@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../chapter_practice/chapter_practice_progress_store.dart';
 import '../daily_skill/daily_skill_progress_store.dart';
 import '../practice/flat_practice_progress_store.dart';
+import '../practice/practice_settings_store.dart';
 import '../storage/legacy_app_state_store.dart';
 import '../practice/practice_review_store.dart';
 
@@ -12,6 +13,7 @@ final class MethodChannelRequestContext
         PracticeReviewStore,
         ChapterPracticeProgressStore,
         FlatPracticeProgressStore,
+        PracticeSettingsStore,
         DailySkillProgressPersistence {
   MethodChannelRequestContext({MethodChannel? channel})
     : _channel = channel ?? const MethodChannel(channelName);
@@ -129,6 +131,19 @@ final class MethodChannelRequestContext
           'questionId': questionId,
         }) ??
         false;
+  }
+
+  @override
+  Future<PracticeSettings> loadPracticeSettings() async {
+    final values = await _channel.invokeMapMethod<String, dynamic>(
+      'getPracticeSettings',
+    );
+    return PracticeSettings.fromMap(values ?? const {});
+  }
+
+  @override
+  Future<void> savePracticeSettings(PracticeSettings settings) {
+    return _channel.invokeMethod<void>('setPracticeSettings', settings.toMap());
   }
 
   @override

@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../main_tabs/main_tabs_models.dart';
 import '../practice/flat_practice_progress_store.dart';
 import '../practice/practice_repository.dart';
+import '../practice/practice_settings_store.dart';
+import '../practice/practice_page.dart';
 import 'fast_practice_catalog_page.dart';
 import 'fast_practice_landing_page.dart';
 import 'fast_practice_models.dart';
@@ -17,6 +19,8 @@ final class FastPracticeEntryPage extends StatefulWidget {
     this.practiceDataSource,
     this.practiceLauncher,
     this.flatProgressStore = const DisabledFlatPracticeProgressStore(),
+    this.settingsStore = const DisabledPracticeSettingsStore(),
+    this.paymentLauncher,
     this.onUnlock,
     super.key,
   }) : assert(practiceDataSource != null || practiceLauncher != null);
@@ -26,6 +30,8 @@ final class FastPracticeEntryPage extends StatefulWidget {
   final PracticeDataSource? practiceDataSource;
   final FastPracticeLauncher? practiceLauncher;
   final FlatPracticeProgressStore flatProgressStore;
+  final PracticeSettingsStore settingsStore;
+  final PracticePaymentLauncher? paymentLauncher;
   final FastPracticeUnlockLauncher? onUnlock;
 
   @override
@@ -76,6 +82,8 @@ final class _FastPracticeEntryPageState extends State<FastPracticeEntryPage> {
         practiceDataSource: widget.practiceDataSource,
         practiceLauncher: widget.practiceLauncher,
         flatProgressStore: widget.flatProgressStore,
+        settingsStore: widget.settingsStore,
+        paymentLauncher: widget.paymentLauncher,
       ),
       FastPracticeEntryDestination.landing => FastPracticeLandingPage(
         module: widget.module,

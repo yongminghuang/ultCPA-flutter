@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ultcpa_flutter/src/account_profile/account_profile_models.dart';
@@ -131,6 +133,32 @@ void main() {
     await tester.pump();
 
     expect(launched, [_homeData.modules.single]);
+  });
+
+  testWidgets('home VIP action is wired and single-flight', (tester) async {
+    final result = Completer<VipPurchaseResult?>();
+    var launchCalls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MainTabsPage(
+          dataSource: _DataSource(),
+          mineVipPurchaseLauncher: (_) {
+            launchCalls += 1;
+            return result.future;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final purchase = find.byKey(const ValueKey('home-vip-purchase'));
+    await tester.tap(purchase);
+    await tester.tap(purchase);
+    await tester.pump();
+
+    expect(launchCalls, 1);
+    result.complete(null);
+    await tester.pumpAndSettle();
   });
 
   testWidgets('passes the app-level review launcher to the Mine tab', (

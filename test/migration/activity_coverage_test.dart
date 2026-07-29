@@ -382,10 +382,10 @@ void main() {
       expect(runner.evidence, isNot(contains('removal thresholds pending')));
       expect(runner.evidence, contains('exams'));
       expect(runner.evidence, contains('course'));
-      expect(runner.evidence, isNot(contains('daily report, promotion')));
-      expect(runner.evidence, contains('promotion/payment'));
-      expect(runner.evidence, contains('audio'));
-      expect(runner.evidence, contains('correction'));
+      expect(runner.evidence, contains('promotion practice UI/payment'));
+      expect(runner.evidence, contains('media explanation playback'));
+      expect(runner.evidence, contains('text correction migrated'));
+      expect(runner.evidence, contains('correction image attachments pending'));
       expect(chapterCatalog.status, ActivityMigrationStatus.complete);
       expect(chapterCatalog.flutterSurface, 'ChapterPracticePage');
       expect(chapterCatalog.evidence, contains('tree and record chunking'));

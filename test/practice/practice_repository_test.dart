@@ -931,6 +931,31 @@ void main() {
   });
 
   group('review management commands', () {
+    test('loads the current question skills from the Android endpoint', () async {
+      final api = _Api((path, query) {
+        expect(path, '/knowledge/skill/querySkillsByQuestion');
+        return [
+          {
+            'skillId': 'skill-42',
+            'text': '看到关键词就选 A',
+            'keyword': '关键词',
+            'note': '这是技巧解析',
+          },
+        ];
+      });
+      final repository = PracticeRepository(
+        api: api,
+        stateStore: _Store(const {}),
+      );
+
+      final skills = await repository.loadSkillsForQuestion('42');
+
+      expect(api.getRequests.single.query, {'questionId': 42});
+      expect(skills.single.skillId, 'skill-42');
+      expect(skills.single.displayText, '看到关键词就选 A');
+      expect(skills.single.note, '这是技巧解析');
+    });
+
     test(
       'posts exact collect and uncollect payloads from current selection',
       () async {
@@ -987,6 +1012,66 @@ void main() {
         'type': 2,
       });
     });
+
+    test('clears all current-subject practice records like Android', () async {
+      final api = _Api((path, query) => null);
+      final repository = PracticeRepository(
+        api: api,
+        stateStore: _Store(_loggedInSnapshot),
+      );
+
+      await repository.clearPracticeRecords();
+
+      expect(
+        api.postRequests.single.path,
+        '/app/question/deleteQuestionRecord',
+      );
+      expect(api.postRequests.single.body, {
+        'questionIds': const <int>[],
+        'subject': '社工实务',
+        'level': '初级社工',
+        'type': 1,
+      });
+    });
+
+    test(
+      'submits the Android-compatible question correction payload',
+      () async {
+        final api = _Api((path, query) => null);
+        final repository = PracticeRepository(
+          api: api,
+          stateStore: _Store({
+            ..._loggedInSnapshot,
+            'userId': '2038529229062426626',
+            'phone': '13800138000',
+          }),
+        );
+        final question = PracticeQuestion.fromMap(_question('42'));
+
+        await repository.submitCorrection(
+          question: question,
+          serialNumber: 3,
+          type: 2,
+          content: '  答案应为 B  ',
+        );
+
+        expect(
+          api.postRequests.single.path,
+          '/app/questionCorrect/createCorrectItem',
+        );
+        expect(api.postRequests.single.body, {
+          'carType': 1,
+          'course': 1,
+          'type': 2,
+          'questionId': '42',
+          'content': '答案应为 B',
+          'userId': '2038529229062426626',
+          'serialNumber': 3,
+          'images': const <String>[],
+          'mobile': '13800138000',
+        });
+      },
+    );
 
     test(
       'probes login and the exact Home error-question count request',

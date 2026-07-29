@@ -231,6 +231,7 @@ final class _HomeContentState extends State<_HomeContent> {
   bool _useWhiteHeader = false;
 
   bool _handleScroll(ScrollNotification notification) {
+    if (notification.metrics.axis != Axis.vertical) return false;
     final shouldUseWhiteHeader =
         notification.metrics.pixels >= _headerSwitchOffset;
     if (shouldUseWhiteHeader != _useWhiteHeader && mounted) {
@@ -362,6 +363,7 @@ final class _CategoryHeader extends StatelessWidget {
         ? const Color(0xFF1F2937)
         : Colors.white;
     return AnimatedContainer(
+      key: const ValueKey('home-category-header'),
       duration: const Duration(milliseconds: 140),
       color: useWhiteBackground ? Colors.white : Colors.transparent,
       padding: EdgeInsets.fromLTRB(

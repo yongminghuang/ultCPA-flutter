@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ultcpa_flutter/src/network/method_channel_request_context.dart';
+import 'package:ultcpa_flutter/src/practice/practice_settings_store.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -237,4 +238,50 @@ void main() {
       );
     },
   );
+
+  test('reads and writes Android-compatible practice settings', () async {
+    final calls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          calls.add(call);
+          if (call.method == 'getPracticeSettings') {
+            return {
+              'autoNext': false,
+              'playCorrectSound': true,
+              'explainWrongAutomatically': false,
+              'fontSize': 2,
+              'themeMode': 1,
+            };
+          }
+          return null;
+        });
+    final context = MethodChannelRequestContext();
+
+    final settings = await context.loadPracticeSettings();
+    expect(settings.autoNext, isFalse);
+    expect(settings.playCorrectSound, isTrue);
+    expect(settings.explainWrongAutomatically, isFalse);
+    expect(settings.fontSize, PracticeFontSize.extraLarge);
+    expect(settings.themeMode, PracticeThemeMode.eyeCare);
+
+    await context.savePracticeSettings(
+      settings.copyWith(
+        autoNext: true,
+        fontSize: PracticeFontSize.small,
+        themeMode: PracticeThemeMode.night,
+      ),
+    );
+
+    expect(calls.map((call) => call.method), [
+      'getPracticeSettings',
+      'setPracticeSettings',
+    ]);
+    expect(calls.last.arguments, {
+      'autoNext': true,
+      'playCorrectSound': true,
+      'explainWrongAutomatically': false,
+      'fontSize': -1,
+      'themeMode': 2,
+    });
+  });
 }

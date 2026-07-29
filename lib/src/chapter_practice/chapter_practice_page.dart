@@ -5,12 +5,15 @@ import 'package:flutter/material.dart';
 import '../main_tabs/main_tabs_models.dart';
 import '../practice/practice_page.dart';
 import '../practice/practice_repository.dart';
+import '../practice/practice_settings_store.dart';
 import 'chapter_practice_models.dart';
 import 'chapter_practice_progress_store.dart';
 import 'chapter_practice_repository.dart';
 
 typedef ChapterPracticeLauncher =
     Future<void> Function(BuildContext context, ChapterPracticeRequest request);
+typedef ChapterPracticeUnlockLauncher =
+    Future<bool> Function(BuildContext context);
 
 final class ChapterPracticePage extends StatefulWidget {
   const ChapterPracticePage({
@@ -19,6 +22,9 @@ final class ChapterPracticePage extends StatefulWidget {
     required this.progressStore,
     this.practiceDataSource,
     this.practiceLauncher,
+    this.settingsStore = const DisabledPracticeSettingsStore(),
+    this.paymentLauncher,
+    this.onUnlock,
     super.key,
   }) : assert(practiceDataSource != null || practiceLauncher != null);
 
@@ -27,6 +33,9 @@ final class ChapterPracticePage extends StatefulWidget {
   final ChapterPracticeProgressStore progressStore;
   final PracticeDataSource? practiceDataSource;
   final ChapterPracticeLauncher? practiceLauncher;
+  final PracticeSettingsStore settingsStore;
+  final PracticePaymentLauncher? paymentLauncher;
+  final ChapterPracticeUnlockLauncher? onUnlock;
 
   @override
   State<ChapterPracticePage> createState() => _ChapterPracticePageState();
@@ -172,9 +181,9 @@ final class _ChapterPracticePageState extends State<ChapterPracticePage> {
     );
   }
 
-  void _selectGroup(int index, ChapterPracticeGroup group) {
+  Future<void> _selectGroup(int index, ChapterPracticeGroup group) async {
     if (!group.unlocked) {
-      _showUnlockMessage();
+      await _unlock();
       return;
     }
     if (_expandedIndex == index) return;
@@ -195,7 +204,7 @@ final class _ChapterPracticePageState extends State<ChapterPracticePage> {
 
   Future<void> _selectChapter(ChapterPracticeChapter chapter) async {
     if (!chapter.unlocked) {
-      _showUnlockMessage();
+      await _unlock();
       return;
     }
     var mode = ChapterPracticeEntryMode.resume;
@@ -239,6 +248,8 @@ final class _ChapterPracticePageState extends State<ChapterPracticePage> {
             request: request,
             dataSource: widget.practiceDataSource!,
             chapterProgressStore: widget.progressStore,
+            settingsStore: widget.settingsStore,
+            paymentLauncher: widget.paymentLauncher,
           ),
         ),
       );
@@ -246,10 +257,28 @@ final class _ChapterPracticePageState extends State<ChapterPracticePage> {
     if (mounted) await _load();
   }
 
+  Future<void> _unlock() async {
+    final launcher = widget.onUnlock;
+    if (launcher == null) {
+      _showUnlockMessage();
+      return;
+    }
+    try {
+      final paid = await launcher(context);
+      if (paid && mounted) await _load();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(content: Text('支付入口打开失败，请稍后重试')));
+      }
+    }
+  }
+
   void _showUnlockMessage() {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('章节练习需解锁，会员与支付功能仍在迁移中')));
+      ..showSnackBar(const SnackBar(content: Text('章节练习需解锁，请开通会员后继续')));
   }
 }
 

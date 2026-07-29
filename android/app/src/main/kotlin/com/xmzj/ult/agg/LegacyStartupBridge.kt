@@ -225,6 +225,34 @@ class LegacyStartupBridge(private val context: Context) {
                         val questionId = call.argument<String>("questionId").orEmpty()
                         result.success(recordWrongQuestionCorrect(questionId))
                     }
+                    "getPracticeSettings" -> {
+                        val preferences = learnPreferences()
+                        result.success(
+                            mapOf(
+                                "autoNext" to preferences.getBoolean(PRACTICE_AUTO_NEXT, true),
+                                "playCorrectSound" to preferences.getBoolean(PRACTICE_PLAY_VOICE, true),
+                                "explainWrongAutomatically" to preferences.getBoolean(PRACTICE_WRONG_AUDIO, true),
+                                "fontSize" to preferences.getInt(PRACTICE_FONT_SIZE, 1),
+                                "themeMode" to preferences.getInt(PRACTICE_THEME, 0),
+                            ),
+                        )
+                    }
+                    "setPracticeSettings" -> {
+                        val fontSize = call.argument<Int>("fontSize") ?: 1
+                        val themeMode = call.argument<Int>("themeMode") ?: 0
+                        require(fontSize in -1..2) { "Practice font size must be between -1 and 2" }
+                        require(themeMode in 0..2) { "Practice theme must be between 0 and 2" }
+                        check(
+                            learnPreferences().edit()
+                                .putBoolean(PRACTICE_AUTO_NEXT, call.argument<Boolean>("autoNext") ?: true)
+                                .putBoolean(PRACTICE_PLAY_VOICE, call.argument<Boolean>("playCorrectSound") ?: true)
+                                .putBoolean(PRACTICE_WRONG_AUDIO, call.argument<Boolean>("explainWrongAutomatically") ?: true)
+                                .putInt(PRACTICE_FONT_SIZE, fontSize)
+                                .putInt(PRACTICE_THEME, themeMode)
+                                .commit(),
+                        ) { "Could not persist practice settings" }
+                        result.success(null)
+                    }
                     "persistCategorySelection" -> {
                         persistCategorySelection(
                             call.argument<String>("categoryBodyJson").orEmpty(),
@@ -734,6 +762,11 @@ class LegacyStartupBridge(private val context: Context) {
 
     companion object {
         private const val REMOVE_ERROR_NUMBER = "removeErrorNumber"
+        private const val PRACTICE_AUTO_NEXT = "autoNext"
+        private const val PRACTICE_PLAY_VOICE = "PlayVoice"
+        private const val PRACTICE_WRONG_AUDIO = "answerErrPushAudio"
+        private const val PRACTICE_FONT_SIZE = "fontSize"
+        private const val PRACTICE_THEME = "learnTheme"
         private const val LEARN_RECORD_DATABASE = "learnRecord"
         private const val QUESTION_COUNT_TABLE = "questionCount"
         private const val QUESTION_ID_COLUMN = "questionId"

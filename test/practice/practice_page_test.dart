@@ -11,7 +11,9 @@ import 'package:ultcpa_flutter/src/practice/practice_models.dart';
 import 'package:ultcpa_flutter/src/practice/practice_page.dart';
 import 'package:ultcpa_flutter/src/practice/practice_repository.dart';
 import 'package:ultcpa_flutter/src/practice/practice_result_page.dart';
+import 'package:ultcpa_flutter/src/practice/practice_settings_store.dart';
 import 'package:ultcpa_flutter/src/skill_mnemonics/skill_mnemonics_models.dart';
+import 'package:ultcpa_flutter/src/vip_purchase/vip_purchase_models.dart';
 
 void main() {
   testWidgets('shows loading before the catalog resolves', (tester) async {
@@ -57,6 +59,136 @@ void main() {
     expect(find.text('题目 1'), findsOneWidget);
   });
 
+  testWidgets('applies and persists Android practice settings', (tester) async {
+    final settingsStore = _SettingsStore(
+      const PracticeSettings(
+        autoNext: false,
+        playCorrectSound: false,
+        explainWrongAutomatically: false,
+        fontSize: PracticeFontSize.normal,
+        themeMode: PracticeThemeMode.standard,
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PracticePage(
+          request: _request,
+          dataSource: _DataSource(
+            (_) async => _catalog([PracticeQuestionItem(_question('1'))]),
+          ),
+          settingsStore: settingsStore,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('practice-settings')));
+    await tester.pumpAndSettle();
+    expect(find.text('答对自动跳转下一题'), findsOneWidget);
+    await tester.tap(find.text('护眼'));
+    await tester.pumpAndSettle();
+
+    expect(settingsStore.saved.last.themeMode, PracticeThemeMode.eyeCare);
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
+    expect(scaffold.backgroundColor, const Color(0xFFF9F6ED));
+  });
+
+  testWidgets('auto-next follows the persisted Android setting', (
+    tester,
+  ) async {
+    final settingsStore = _SettingsStore(
+      const PracticeSettings(
+        autoNext: true,
+        playCorrectSound: false,
+        explainWrongAutomatically: false,
+        fontSize: PracticeFontSize.normal,
+        themeMode: PracticeThemeMode.standard,
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PracticePage(
+          request: _request,
+          dataSource: _DataSource(
+            (_) async => _catalog([
+              PracticeQuestionItem(_question('1')),
+              PracticeQuestionItem(_question('2')),
+            ]),
+          ),
+          settingsStore: settingsStore,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('practice-option-A')));
+    await tester.pump(const Duration(milliseconds: 421));
+
+    expect(find.text('题目 2'), findsOneWidget);
+  });
+
+  testWidgets('always shows Android skill shortcut and loads current skills', (
+    tester,
+  ) async {
+    final source = _DataSource(
+      (_) async => _catalog([PracticeQuestionItem(_question('1'))]),
+      skillLoader: (questionId) async => [_skill('related-$questionId').skill],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PracticePage(request: _request, dataSource: source),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('practice-skill-shortcut')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('practice-skill-shortcut')));
+    await tester.pumpAndSettle();
+
+    expect(source.skillQuestionIds, ['1']);
+    expect(
+      find.byKey(const ValueKey('practice-skill-explanation')),
+      findsOneWidget,
+    );
+    expect(find.text('技巧讲解'), findsWidgets);
+    expect(find.text('技巧解释 related-1', findRichText: true), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('practice-skill-explanation-close')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('practice-skill-shortcut')));
+    await tester.pumpAndSettle();
+    expect(source.skillQuestionIds, ['1']);
+  });
+
+  testWidgets('reports the Android no-skill state for the current question', (
+    tester,
+  ) async {
+    final source = _DataSource(
+      (_) async => _catalog([PracticeQuestionItem(_question('1'))]),
+      skillLoader: (_) async => const [],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PracticePage(request: _request, dataSource: source),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('practice-skill-shortcut')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('该题暂无技巧'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('practice-skill-explanation')),
+      findsNothing,
+    );
+  });
+
   testWidgets(
     'renders a skill card then submits and persists a single choice',
     (tester) async {
@@ -80,7 +212,7 @@ void main() {
       expect(find.text('技巧 s-1', findRichText: true), findsOneWidget);
       expect(find.text('技巧解析'), findsOneWidget);
       expect(find.text('技巧解释 s-1', findRichText: true), findsOneWidget);
-      expect(find.text('1 / 2'), findsOneWidget);
+      expect(find.text('1/2'), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('practice-next')));
       await tester.pump();
@@ -96,8 +228,8 @@ void main() {
       );
       expect(find.text('正确答案：A'), findsOneWidget);
       expect(find.text('解析内容'), findsOneWidget);
-      expect(find.text('正确 1'), findsOneWidget);
-      expect(find.text('错误 0'), findsOneWidget);
+      expect(_bottomStatText(tester, 'practice-right-count'), '1');
+      expect(_bottomStatText(tester, 'practice-wrong-count'), '0');
       expect(source.saved.single.answer.choose, 'A');
       expect(source.saved.single.answer.isRight, isTrue);
     },
@@ -157,6 +289,34 @@ void main() {
     expect(find.text('题目 2'), findsOneWidget);
   });
 
+  testWidgets('answer card clears remote and local practice records', (
+    tester,
+  ) async {
+    final source = _DataSource(
+      (_) async => _catalog([PracticeQuestionItem(_question('1'))]),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PracticePage(request: _request, dataSource: source),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('practice-option-A')));
+    await tester.pump();
+    expect(find.text('正确答案：A'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('practice-answer-card')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('practice-clear-records')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('清空').last);
+    await tester.pumpAndSettle();
+
+    expect(source.clearCalls, 1);
+    expect(find.text('正确答案：A'), findsNothing);
+    expect(find.text('做题记录已清空'), findsOneWidget);
+  });
+
   testWidgets('renders judgment questions and wrong option states', (
     tester,
   ) async {
@@ -184,7 +344,17 @@ void main() {
       find.byKey(const ValueKey('practice-option-state-B-correct')),
       findsOneWidget,
     );
-    expect(find.text('错误 1'), findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byKey(const ValueKey('practice-wrong-count')),
+              matching: find.byType(Text),
+            ),
+          )
+          .data,
+      '1',
+    );
   });
 
   testWidgets('keeps a local answer and reports record sync failure', (
@@ -208,6 +378,36 @@ void main() {
     expect(find.text('答题记录同步失败，请稍后重试'), findsOneWidget);
   });
 
+  testWidgets('submits Android-style question correction feedback', (
+    tester,
+  ) async {
+    final source = _DataSource(
+      (_) async =>
+          _catalog([PracticeQuestionItem(_question('1', analysis: '解析内容'))]),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PracticePage(request: _request, dataSource: source),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('practice-option-A')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('practice-correction')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('答案有误'));
+    await tester.enterText(find.byType(TextField), '正确答案应为 B');
+    await tester.tap(find.text('提交'));
+    await tester.pumpAndSettle();
+
+    expect(source.corrections, hasLength(1));
+    expect(source.corrections.single.serialNumber, 1);
+    expect(source.corrections.single.type, 2);
+    expect(source.corrections.single.content, '正确答案应为 B');
+    expect(find.text('提交完成,感谢您的反馈'), findsOneWidget);
+  });
+
   testWidgets('reports a pending membership boundary without saving', (
     tester,
   ) async {
@@ -228,9 +428,125 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('practice-option-A')));
     await tester.pump();
 
-    expect(find.text('免费练题次数已用完，会员与支付功能仍在迁移中'), findsOneWidget);
+    expect(find.text('免费练题次数已用完，请开通会员后继续'), findsOneWidget);
     expect(source.saved, isEmpty);
     expect(find.text('正确答案：A'), findsNothing);
+  });
+
+  testWidgets('opens the Android answer-card payment source at the boundary', (
+    tester,
+  ) async {
+    final sources = <VipPaymentSource>[];
+    final source = _DataSource(
+      (_) async => _catalog(
+        [PracticeQuestionItem(_question('1'))],
+        fullAccess: false,
+        freeQuestionCount: 0,
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PracticePage(
+          request: _request,
+          dataSource: source,
+          paymentLauncher: (_, paymentSource) async {
+            sources.add(paymentSource);
+            return VipPurchaseResult.paid;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('practice-option-A')));
+    await tester.pump();
+    expect(sources, [VipPaymentSource.answerCardUnlock]);
+
+    await tester.tap(find.byKey(const ValueKey('practice-option-A')));
+    await tester.pump();
+    expect(find.text('正确答案：A'), findsOneWidget);
+    expect(source.saved, hasLength(1));
+  });
+
+  testWidgets('uses Android payment sources for skill explanation', (
+    tester,
+  ) async {
+    final sources = <VipPaymentSource>[];
+    final source = _DataSource(
+      (_) async => _catalog(
+        [PracticeQuestionItem(_question('1')), _skill('s-1')],
+        fullAccess: false,
+        freeQuestionCount: 0,
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PracticePage(
+          request: _request,
+          dataSource: source,
+          paymentLauncher: (_, paymentSource) async {
+            sources.add(paymentSource);
+            return VipPurchaseResult.paid;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('practice-skill-shortcut')));
+    await tester.pumpAndSettle();
+
+    expect(sources, [VipPaymentSource.skillExplain]);
+    expect(
+      find.byKey(const ValueKey('practice-skill-explanation')),
+      findsOneWidget,
+    );
+    expect(find.text('技巧解释 s-1', findRichText: true), findsOneWidget);
+  });
+
+  testWidgets('promotion banner and completion use their exact pay sources', (
+    tester,
+  ) async {
+    final sources = <VipPaymentSource>[];
+    final request = ModulePracticeRequest(
+      module: const HomeModule(id: 9, name: '推广练题', page: '推广技巧', tag: ''),
+    );
+    final source = _DataSource(
+      (_) async =>
+          _catalog([_skill('s-1'), PracticeQuestionItem(_question('1'))]),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PracticePage(
+          request: request,
+          dataSource: source,
+          paymentLauncher: (_, paymentSource) async {
+            sources.add(paymentSource);
+            return paymentSource == VipPaymentSource.promotionPracticeFinish
+                ? VipPurchaseResult.paid
+                : null;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('practice-promotion-unlock')));
+    await tester.pump();
+    expect(sources, [VipPaymentSource.promotionPracticePay]);
+
+    await tester.tap(find.byKey(const ValueKey('practice-next')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('practice-option-A')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('practice-next')));
+    await tester.pumpAndSettle();
+
+    expect(sources, [
+      VipPaymentSource.promotionPracticePay,
+      VipPaymentSource.promotionPracticeFinish,
+    ]);
+    expect(find.byType(PracticeResultPage), findsOneWidget);
   });
 
   testWidgets('opens the result page from the last item', (tester) async {
@@ -872,7 +1188,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('practice-next')));
     await tester.pumpAndSettle();
 
-    expect(find.text('章节练习需解锁，会员与支付功能仍在迁移中'), findsOneWidget);
+    expect(find.text('章节练习需解锁，请开通会员后继续'), findsOneWidget);
     expect(find.text('题目 1'), findsOneWidget);
     expect(find.byType(PracticeResultPage), findsNothing);
     expect(source.loadedRequests, hasLength(1));
@@ -1018,8 +1334,18 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('题目 102'), findsOneWidget);
-      expect(find.text('正确 1'), findsOneWidget);
-      expect(find.text('错误 1'), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(const ValueKey('practice-right-count')),
+                matching: find.byType(Text),
+              ),
+            )
+            .data,
+        '1',
+      );
+      expect(_bottomStatText(tester, 'practice-wrong-count'), '1');
       expect(source.saved, isEmpty);
       expect(progress.loadCalls, 1);
       expect(progress.persistedOrders, [
@@ -1394,7 +1720,11 @@ final class _CollectionChange {
   final bool collected;
 }
 
-final class _DataSource implements PracticeDataSource {
+final class _DataSource
+    implements
+        PracticeDataSource,
+        PracticeMaintenanceDataSource,
+        PracticeSkillExplanationDataSource {
   _DataSource(
     this.loader, {
     this.failSave = false,
@@ -1403,6 +1733,7 @@ final class _DataSource implements PracticeDataSource {
     this.correctResult,
     this.threshold = -1,
     this.thresholdReached = false,
+    this.skillLoader,
   });
 
   final Future<PracticeCatalog> Function(PracticeRequest request) loader;
@@ -1412,6 +1743,7 @@ final class _DataSource implements PracticeDataSource {
   final Completer<bool>? correctResult;
   final int threshold;
   final bool thresholdReached;
+  final Future<List<SkillMnemonic>> Function(String questionId)? skillLoader;
   bool failWrongRemoval = false;
   final List<_SavedAnswer> saved = [];
   final List<_CollectionChange> collectionChanges = [];
@@ -1419,6 +1751,12 @@ final class _DataSource implements PracticeDataSource {
   final List<PracticeQuestion> recordedCorrect = [];
   final List<int> savedThresholds = [];
   final List<PracticeRequest> loadedRequests = [];
+  final List<String> skillQuestionIds = [];
+  int clearCalls = 0;
+  final List<
+    ({PracticeQuestion question, int serialNumber, int type, String content})
+  >
+  corrections = [];
 
   @override
   Future<PracticeCatalog> load(PracticeRequest request) {
@@ -1471,6 +1809,59 @@ final class _DataSource implements PracticeDataSource {
     return correctResult == null
         ? thresholdReached
         : await correctResult!.future;
+  }
+
+  @override
+  Future<void> clearPracticeRecords() async {
+    clearCalls += 1;
+  }
+
+  @override
+  Future<void> submitCorrection({
+    required PracticeQuestion question,
+    required int serialNumber,
+    required int type,
+    required String content,
+  }) async {
+    corrections.add((
+      question: question,
+      serialNumber: serialNumber,
+      type: type,
+      content: content,
+    ));
+  }
+
+  @override
+  Future<List<SkillMnemonic>> loadSkillsForQuestion(String questionId) async {
+    skillQuestionIds.add(questionId);
+    return await skillLoader?.call(questionId) ?? const [];
+  }
+}
+
+String? _bottomStatText(WidgetTester tester, String key) {
+  return tester
+      .widget<Text>(
+        find.descendant(
+          of: find.byKey(ValueKey(key)),
+          matching: find.byType(Text),
+        ),
+      )
+      .data;
+}
+
+final class _SettingsStore implements PracticeSettingsStore {
+  _SettingsStore(this.settings);
+
+  PracticeSettings settings;
+  final List<PracticeSettings> saved = [];
+
+  @override
+  Future<PracticeSettings> loadPracticeSettings() async => settings;
+
+  @override
+  Future<void> savePracticeSettings(PracticeSettings value) async {
+    settings = value;
+    saved.add(value);
   }
 }
 
