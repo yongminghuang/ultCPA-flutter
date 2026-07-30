@@ -22,6 +22,9 @@ void main() {
   final vipPaymentBridge = File(
     'android/app/src/main/kotlin/com/xmzj/ult/agg/VipPaymentBridge.kt',
   );
+  final promotionSharingBridge = File(
+    'android/app/src/main/kotlin/com/xmzj/ult/agg/PromotionSharingBridge.kt',
+  );
   final wxPayEntryActivity = File(
     'android/app/src/main/kotlin/com/xmzj/ult/agg/wxapi/'
     'WXPayEntryActivity.kt',
@@ -552,12 +555,21 @@ void main() {
     expect(callback, contains('api.handleIntent'));
     expect(callback, contains('override fun onReq'));
     expect(callback, contains('override fun onResp'));
-    expect(
-      manifestSource,
-      contains('android:name=".wxapi.WXEntryActivity"'),
-    );
+    expect(manifestSource, contains('android:name=".wxapi.WXEntryActivity"'));
     expect(manifestSource, contains('android:exported="true"'));
     expect(manifestSource, contains('android:launchMode="singleTop"'));
+  });
+
+  test('keeps WeChat poster shares below the Android Binder limit', () {
+    expect(promotionSharingBridge.existsSync(), isTrue);
+    if (!promotionSharingBridge.existsSync()) return;
+
+    final source = promotionSharingBridge.readAsStringSync();
+    expect(source, contains('fitWechatImagePayload(bitmap, bytes)'));
+    expect(source, contains('WXImageObject(shareBytes)'));
+    expect(source, contains('MAX_WECHAT_IMAGE_BYTES = 700 * 1024'));
+    expect(source, contains('Bitmap.CompressFormat.JPEG'));
+    expect(source, contains('Bitmap.createScaledBitmap'));
   });
 
   test('confines Mine app updates and exports the exact build channel', () {
