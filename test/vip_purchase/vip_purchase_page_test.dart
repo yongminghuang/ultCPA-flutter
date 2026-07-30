@@ -180,6 +180,30 @@ void main() {
     expect(find.text('畅享 财务管理 答题技巧'), findsOneWidget);
   });
 
+  testWidgets('keeps Android subject chips content-sized on one row', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 568));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final dataSource = _DataSource(
+      session: _session(expanded: false),
+      skuHandler: (_, _) async => _selection(),
+    );
+
+    await tester.pumpWidget(_app(dataSource));
+    await tester.pumpAndSettle();
+
+    final accounting = find.byKey(const ValueKey('vip-subject-6'));
+    final law = find.byKey(const ValueKey('vip-subject-7'));
+    final finance = find.byKey(const ValueKey('vip-subject-8'));
+    expect(tester.getSize(accounting).width, lessThan(120));
+    expect(tester.getSize(law).width, lessThan(120));
+    expect(tester.getSize(finance).width, lessThan(120));
+    expect(tester.getTopLeft(accounting).dy, tester.getTopLeft(law).dy);
+    expect(tester.getTopLeft(law).dy, tester.getTopLeft(finance).dy);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('retries an initial session failure', (tester) async {
     var attempts = 0;
     final dataSource = _DataSource(

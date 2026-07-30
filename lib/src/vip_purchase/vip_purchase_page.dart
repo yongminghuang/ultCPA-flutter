@@ -535,7 +535,6 @@ final class _VipPurchasePageState extends State<VipPurchasePage> {
               height: 31,
               constraints: const BoxConstraints(minWidth: 82),
               padding: const EdgeInsets.symmetric(horizontal: 14),
-              alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: selected ? const Color(0xFFFFF3E6) : Colors.white,
                 border: Border.all(
@@ -545,13 +544,16 @@ final class _VipPurchasePageState extends State<VipPurchasePage> {
                 ),
                 borderRadius: BorderRadius.circular(5),
               ),
-              child: Text(
-                label,
-                maxLines: 1,
-                style: TextStyle(
-                  color: const Color(0xFF33333D),
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              child: Center(
+                widthFactor: 1,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: const Color(0xFF33333D),
+                    fontSize: 13,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
                 ),
               ),
             ),
