@@ -17,6 +17,7 @@ final class MainTabsPage extends StatefulWidget {
     required this.dataSource,
     this.loginLauncher,
     this.moduleLauncher,
+    this.courseMediaLauncher,
     this.learningMaterialsSectionBuilder,
     this.mineAppUpdateLauncher,
     this.mineCustomerServiceLauncher,
@@ -32,6 +33,7 @@ final class MainTabsPage extends StatefulWidget {
   final MainTabsDataSource dataSource;
   final PhoneLoginLauncher? loginLauncher;
   final HomeModuleLauncher? moduleLauncher;
+  final CourseMediaLauncher? courseMediaLauncher;
   final LearningMaterialsSectionBuilder? learningMaterialsSectionBuilder;
   final MineAppUpdateLauncher? mineAppUpdateLauncher;
   final MineCustomerServiceLauncher? mineCustomerServiceLauncher;
@@ -73,6 +75,7 @@ final class _MainTabsPageState extends State<MainTabsPage> {
     return CourseTabPage(
       dataSource: widget.dataSource,
       selectionRevision: _selectionRevision,
+      mediaLauncher: widget.courseMediaLauncher,
     );
   }
 

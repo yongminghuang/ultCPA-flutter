@@ -8,6 +8,8 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    private lateinit var promotionSharingBridge: PromotionSharingBridge
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MMKV.initialize(applicationContext)
@@ -16,6 +18,9 @@ class MainActivity : FlutterActivity() {
         AccountSafetyBridge(this).register(flutterEngine)
         MineActionsBridge(this).register(flutterEngine)
         VipPaymentBridge(this).register(flutterEngine)
+        promotionSharingBridge = PromotionSharingBridge(this).also {
+            it.register(flutterEngine)
+        }
         val appKv = requireNotNull(MMKV.mmkvWithID("App"))
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
@@ -40,6 +45,23 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        if (::promotionSharingBridge.isInitialized &&
+            promotionSharingBridge.onRequestPermissionsResult(
+                requestCode,
+                permissions,
+                grantResults,
+            )
+        ) {
+            return
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
     companion object {

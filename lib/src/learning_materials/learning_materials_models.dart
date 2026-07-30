@@ -298,7 +298,7 @@ final class LearningMaterialsPage {
         final itemMap = Map<String, dynamic>.from(raw);
         if (_text(itemMap['type']).trim().isEmpty) continue;
         final item = LearningMaterialsItem.fromMap(itemMap);
-        if (item.isShow) records.add(item);
+        records.add(item);
       }
     }
     return LearningMaterialsPage(

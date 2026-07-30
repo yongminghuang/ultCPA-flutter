@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../network/app_api_client.dart';
 import '../storage/legacy_app_state_store.dart';
+import '../vip_purchase/vip_purchase_models.dart';
 import 'main_tabs_models.dart';
 import 'mine_web_route.dart';
 
@@ -98,6 +99,12 @@ final class MainTabsRepository implements MainTabsDataSource {
     String? subject,
   }) async {
     final selection = await _loadSelection(preferredSubject: subject);
+    final benefitSummary = resolveVipBenefitSummary(
+      selection.snapshot.userBenefitsJson,
+      category: selection.category,
+      level: selection.level,
+      categoryName: selection.level,
+    );
     final rawItems = _listOf(
       await _api.postBody('/app/tempMedia/query', {
         'subject': selection.subject.name,
@@ -132,6 +139,11 @@ final class MainTabsRepository implements MainTabsDataSource {
       selectedSubject: selection.subject,
       courseType: courseType,
       items: items,
+      isLoggedIn: selection.snapshot.isLoggedIn,
+      hasVideoAccess: benefitSummary.lines.any(
+        (benefit) => benefit.type == 'course_video',
+      ),
+      hasPracticePackage: benefitSummary.hasPracticePackage,
     );
   }
 

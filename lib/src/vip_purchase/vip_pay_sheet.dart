@@ -20,6 +20,11 @@ Future<VipPurchaseResult?> showVipPaySheet(
   VipPaySheetLoginLauncher? loginLauncher,
   VipPaySheetActionLauncher? agreementLauncher,
   VipPaySheetActionLauncher? customerServiceLauncher,
+  Future<VipPurchaseResult?> Function(
+    BuildContext context,
+    VipPurchaseRequest request,
+  )?
+  differenceUpgradeLauncher,
 }) async {
   final paid = await showModalBottomSheet<_VipPaySheetPaid>(
     context: context,
@@ -36,10 +41,12 @@ Future<VipPurchaseResult?> showVipPaySheet(
         paymentGateway: paymentGateway,
         loginLauncher: loginLauncher,
         agreementLauncher: agreementLauncher,
+        differenceUpgradeLauncher: differenceUpgradeLauncher,
       ),
     ),
   );
   if (paid == null) return null;
+  if (!paid.showSuccess) return VipPurchaseResult.paid;
 
   var summary = const VipPurchaseSuccessSummary.generic();
   try {
@@ -67,6 +74,7 @@ final class VipPaySheet extends StatefulWidget {
     required this.paymentGateway,
     this.loginLauncher,
     this.agreementLauncher,
+    this.differenceUpgradeLauncher,
     super.key,
   });
 
@@ -75,6 +83,11 @@ final class VipPaySheet extends StatefulWidget {
   final VipPaymentGateway paymentGateway;
   final VipPaySheetLoginLauncher? loginLauncher;
   final VipPaySheetActionLauncher? agreementLauncher;
+  final Future<VipPurchaseResult?> Function(
+    BuildContext context,
+    VipPurchaseRequest request,
+  )?
+  differenceUpgradeLauncher;
 
   @override
   State<VipPaySheet> createState() => _VipPaySheetState();
@@ -94,6 +107,7 @@ final class _VipPaySheetState extends State<VipPaySheet> {
   bool _checkoutInFlight = false;
   bool _openingAgreement = false;
   bool _closing = false;
+  bool _openingDifferenceUpgrade = false;
   late final VipCheckoutCoordinator _checkoutCoordinator;
 
   @override
@@ -117,6 +131,23 @@ final class _VipPaySheetState extends State<VipPaySheet> {
     try {
       final session = await widget.dataSource.loadSession(widget.request);
       if (!mounted) return;
+      final differenceLauncher = widget.differenceUpgradeLauncher;
+      if (!_openingDifferenceUpgrade &&
+          differenceLauncher != null &&
+          widget.request.allowDifferenceUpgrade &&
+          !session.isFullMember &&
+          session.hasPracticePackage) {
+        _openingDifferenceUpgrade = true;
+        final result = await differenceLauncher(context, widget.request);
+        if (!mounted) return;
+        _closing = true;
+        Navigator.of(context).pop(
+          result == VipPurchaseResult.paid
+              ? _VipPaySheetPaid(session, showSuccess: false)
+              : null,
+        );
+        return;
+      }
       final fallback = _fallbackSubjectIndex(session);
       setState(() {
         _session = session;
@@ -709,9 +740,10 @@ final class _VipPaySheetState extends State<VipPaySheet> {
 }
 
 final class _VipPaySheetPaid {
-  const _VipPaySheetPaid(this.session);
+  const _VipPaySheetPaid(this.session, {this.showSuccess = true});
 
   final VipPurchaseSession session;
+  final bool showSuccess;
 }
 
 final class _PrivilegeTile extends StatelessWidget {

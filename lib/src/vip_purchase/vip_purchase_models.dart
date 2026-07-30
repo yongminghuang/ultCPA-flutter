@@ -139,7 +139,8 @@ enum VipPaymentSource {
     differencePayPageSourceId: 2005,
     presentation: VipPaymentPresentation.practicePackage,
     successDestination: VipPurchaseSuccessDestination.caller,
-  );
+  ),
+  learningMaterials(normalPayPageSourceId: 0);
 
   const VipPaymentSource({
     required this.normalPayPageSourceId,
@@ -158,6 +159,7 @@ enum VipPaymentSource {
 }
 
 enum VipPayEntry {
+  courseTrial(VipPaymentSource.courseTrial),
   fast300(VipPaymentSource.fast300),
   secretPaperList(VipPaymentSource.secretPaperList),
   secretPaperBottom(VipPaymentSource.secretPaperBottom),

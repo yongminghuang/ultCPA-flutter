@@ -45,6 +45,9 @@ android {
         targetSdk = 34
         versionCode = 26071018
         versionName = "1.2.5"
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
     }
 
     flavorDimensions += "channel"
@@ -76,7 +79,16 @@ android {
     }
 
     buildTypes {
+        configureEach {
+            ndk {
+                abiFilters.clear()
+                abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+            }
+        }
         debug {
+            if (hasLegacySigning) {
+                signingConfig = signingConfigs.getByName("legacyRelease")
+            }
             isMinifyEnabled = false
             isShrinkResources = false
         }
@@ -86,6 +98,19 @@ android {
             }
             isMinifyEnabled = false
             isShrinkResources = false
+        }
+    }
+}
+
+androidComponents {
+    beforeVariants(selector().all()) { variantBuilder ->
+        val channel = variantBuilder.productFlavors
+            .firstOrNull { it.first == "channel" }
+            ?.second
+        val isDevelopmentBuild =
+            variantBuilder.buildType == "debug" || variantBuilder.buildType == "profile"
+        if (isDevelopmentBuild && channel != "dev") {
+            variantBuilder.enable = false
         }
     }
 }
@@ -111,4 +136,5 @@ dependencies {
     implementation("com.tencent:mmkv-static:1.2.8")
     implementation("com.tencent.mm.opensdk:wechat-sdk-android:6.8.30")
     implementation("com.alipay.sdk:alipaysdk-android:15.8.42@aar")
+    implementation("com.google.zxing:core:3.5.1")
 }

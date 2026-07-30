@@ -76,7 +76,7 @@ void main() {
     expect(pay.shouldAutoOpenDetail, isFalse);
   });
 
-  test('page filters hidden and malformed rows while preserving pagination', () {
+  test('page keeps hidden pay-jump rows and filters malformed rows', () {
     final page = LearningMaterialsPage.fromBody({
       'total': '4',
       'pages': 3,
@@ -91,10 +91,10 @@ void main() {
     });
 
     expect(page.total, 4);
-    expect(page.records.map((item) => item.id), [1]);
+    expect(page.records.map((item) => item.id), [1, 2]);
     expect(page.hasMore, isTrue);
     expect(page.nextPageNumber, 3);
-    expect(() => page.records.add(page.records.single), throwsUnsupportedError);
+    expect(() => page.records.add(page.records.first), throwsUnsupportedError);
   });
 
   test('shelf helper exactly unwraps one root level and keeps multi roots', () {

@@ -95,6 +95,11 @@ final class CourseMedia {
   final String title;
   final String coverUrl;
   final String mediaUrl;
+
+  bool get hasPlayableMedia {
+    final uri = Uri.tryParse(mediaUrl);
+    return uri?.hasScheme == true && uri!.path.isNotEmpty && uri.path != '/';
+  }
 }
 
 final class MineProfile {
@@ -145,6 +150,9 @@ final class CourseTabData {
     required this.selectedSubject,
     required this.courseType,
     required this.items,
+    this.isLoggedIn = false,
+    this.hasVideoAccess = false,
+    this.hasPracticePackage = false,
   });
 
   final String categoryLabel;
@@ -152,6 +160,9 @@ final class CourseTabData {
   final CategorySubject selectedSubject;
   final CourseType courseType;
   final List<CourseMedia> items;
+  final bool isLoggedIn;
+  final bool hasVideoAccess;
+  final bool hasPracticePackage;
 }
 
 final class MineTabData {

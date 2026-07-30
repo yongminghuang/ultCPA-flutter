@@ -21,6 +21,7 @@ final class VipPurchasePage extends StatefulWidget {
     this.loginLauncher,
     this.customerServiceLauncher,
     this.agreementLauncher,
+    this.differenceUpgradeLauncher,
     super.key,
   });
 
@@ -30,6 +31,11 @@ final class VipPurchasePage extends StatefulWidget {
   final VipPurchaseLoginLauncher? loginLauncher;
   final VipPurchaseActionLauncher? customerServiceLauncher;
   final VipPurchaseActionLauncher? agreementLauncher;
+  final Future<VipPurchaseResult?> Function(
+    BuildContext context,
+    VipPurchaseRequest request,
+  )?
+  differenceUpgradeLauncher;
 
   @override
   State<VipPurchasePage> createState() => _VipPurchasePageState();
@@ -49,6 +55,7 @@ final class _VipPurchasePageState extends State<VipPurchasePage> {
   bool _checkoutInFlight = false;
   bool _openingCustomerService = false;
   bool _openingAgreement = false;
+  bool _openingDifferenceUpgrade = false;
   VipPurchaseSuccessSummary? _successSummary;
   bool _finishingSuccess = false;
   late final VipCheckoutCoordinator _checkoutCoordinator;
@@ -74,6 +81,17 @@ final class _VipPurchasePageState extends State<VipPurchasePage> {
     try {
       final session = await widget.dataSource.loadSession(widget.request);
       if (!mounted) return;
+      final differenceLauncher = widget.differenceUpgradeLauncher;
+      if (!_openingDifferenceUpgrade &&
+          differenceLauncher != null &&
+          widget.request.allowDifferenceUpgrade &&
+          !session.isFullMember &&
+          session.hasPracticePackage) {
+        _openingDifferenceUpgrade = true;
+        final result = await differenceLauncher(context, widget.request);
+        if (mounted) Navigator.of(context).pop(result);
+        return;
+      }
       final fallback =
           session.initialSubjectIndex >= 0 &&
               session.initialSubjectIndex < session.subjects.length

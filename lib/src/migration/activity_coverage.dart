@@ -89,7 +89,9 @@ const _reviewedProgress = <String, ActivityMigrationProgress>{
         'update handoff migrated; privacy-gated cold-ready and foreground '
         'proactive app-version checks migrated with shared 30-minute '
         'throttle and 15-second/3-second secondary splash; Mine VIP CTA and '
-        'paid-result refresh migrated; remaining business destinations and '
+        'paid-result refresh migrated; learning-material commodity payment, '
+        'document WeChat share, and pay-jump routing migrated; invite H5 '
+        'promotion poster sharing migrated; remaining business destinations and '
         'other shared payment launchers pending',
   ),
   'com.jx885.lrjk.cg.ui.activity.AgreeDialogActivity':
@@ -148,9 +150,19 @@ const _reviewedProgress = <String, ActivityMigrationProgress>{
             'marketing, login gate, and native WeChat/Alipay checkout '
             'migrated; shared checkout coordination, WeChat server-status '
             'confirmation, post-payment success routes, and paid-result '
-            'entitlement refresh covered by tests; '
-            'OpenVipDaZhaoActivity pending; VipDifferenceUpgradeActivity '
-            'pending; other locked-feature payment launchers pending',
+            'entitlement refresh covered by tests; difference-upgrade '
+            'eligibility, deduction checkout, normal-purchase fallback, and '
+            'source IDs 2001-2008 migrated; OpenVipDaZhaoActivity pending; '
+            'other locked-feature payment launchers pending',
+      ),
+  'com.jx885.lrjk.cg.ui.activity.VipDifferenceUpgradeActivity':
+      ActivityMigrationProgress(
+        status: ActivityMigrationStatus.complete,
+        flutterSurface: 'VipDifferenceUpgradePage',
+        evidence:
+            'practice-package eligibility, commodity query, server/local '
+            'deduction, native checkout, paid success, and non-recursive '
+            'normal purchase fallback covered by tests',
       ),
   'com.jx885.lrjk.cg.ui.activity.VipPurchaseSuccessActivity':
       ActivityMigrationProgress(
@@ -173,9 +185,52 @@ const _reviewedProgress = <String, ActivityMigrationProgress>{
     flutterSurface: 'LegacyWebViewPage',
     evidence:
         'Mine collect-book route migrated; Mine invite-friends route migrated; '
-        'generic payment pending; file chooser pending; media pending; share '
-        'pending; JavaScript callbacks pending',
+        'invite openInviteShare JavaScript callback and promotion route '
+        'migrated; generic payment pending; file chooser pending; media '
+        'pending; other share and JavaScript callbacks pending',
   ),
+  'com.jx885.lrjk.cg.ui.recommend.RecommendActivity': ActivityMigrationProgress(
+    status: ActivityMigrationStatus.complete,
+    flutterSurface: 'PromotionSharingPage',
+    evidence:
+        'poster API, invite URL normalization, profile overlay, native QR, '
+        'WeChat friend/moments image share, gallery save, and link share '
+        'covered by tests and Android compilation',
+  ),
+  'com.jx885.lrjk.cg.ui.recommend.ChangedRecommendActivity':
+      ActivityMigrationProgress(
+        status: ActivityMigrationStatus.complete,
+        flutterSurface: 'PromotionSharingPage profile editor',
+        evidence: 'name and phone editing, limits, and native persistence',
+      ),
+  'com.jx885.lrjk.cg.ui.recommend.ChangePosterActivity':
+      ActivityMigrationProgress(
+        status: ActivityMigrationStatus.complete,
+        flutterSurface: 'PromotionSharingPage poster selector',
+        evidence: 'visible remote poster templates and selection grid',
+      ),
+  'com.jx885.lrjk.cg.ui.activity.LearningMaterialsFeedActivity':
+      ActivityMigrationProgress(
+        status: ActivityMigrationStatus.complete,
+        flutterSurface: 'LearningMaterialsFeedPage',
+        evidence:
+            'shelves, pagination, document/video cards, direct commodity '
+            'checkout, post-payment state, and pay-jump routing covered by tests',
+      ),
+  'com.jx885.lrjk.cg.ui.activity.DocumentDetailActivity':
+      ActivityMigrationProgress(
+        status: ActivityMigrationStatus.complete,
+        flutterSurface: 'LearningMaterialsDocumentDetailPage',
+        evidence:
+            'rich content, banner routing, Android-compatible share URL, and '
+            'WeChat friend/moments share',
+      ),
+  'com.jx885.lrjk.cg.ui.activity.LearningVideoDetailActivity':
+      ActivityMigrationProgress(
+        status: ActivityMigrationStatus.complete,
+        flutterSurface: 'LearningMaterialsVideoDetailPage',
+        evidence: 'video, cover, metadata, and rich-content detail surface',
+      ),
   'com.jx885.lrjk.cg.learn.LearnActivity': ActivityMigrationProgress(
     status: ActivityMigrationStatus.partial,
     flutterSurface: 'PracticePage / PracticeResultPage',

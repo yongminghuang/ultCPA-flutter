@@ -6,6 +6,35 @@ import 'package:ultcpa_flutter/src/vip_purchase/vip_purchase_models.dart';
 import 'package:ultcpa_flutter/src/vip_purchase/vip_purchase_repository.dart';
 
 void main() {
+  testWidgets('eligible sheet delegates to difference upgrade once', (
+    tester,
+  ) async {
+    VipPurchaseRequest? differenceRequest;
+    final dataSource = _DataSource(
+      sessionHandler: (_) async => _session(hasPracticePackage: true),
+      skuHandler: (_, _, _) async => _selection(),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: _Host(
+          dataSource: dataSource,
+          differenceUpgradeLauncher: (_, request) async {
+            differenceRequest = request;
+            return VipPurchaseResult.paid;
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('open-vip-pay-sheet')));
+    await tester.pumpAndSettle();
+
+    expect(differenceRequest?.differencePayPageSourceId, 2003);
+    expect(dataSource.skuTypes, isEmpty);
+    expect(find.byKey(const ValueKey('vip-pay-sheet')), findsNothing);
+    expect(find.text('result:paid'), findsOneWidget);
+  });
+
   testWidgets(
     'renders the Android popup and updates subject and SKU selection',
     (tester) async {
@@ -217,11 +246,18 @@ void main() {
 int dataSourceSessionCalls = 0;
 
 final class _Host extends StatefulWidget {
-  const _Host({required this.dataSource, this.gateway, this.loginLauncher});
+  const _Host({
+    required this.dataSource,
+    this.gateway,
+    this.loginLauncher,
+    this.differenceUpgradeLauncher,
+  });
 
   final VipPurchaseDataSource dataSource;
   final VipPaymentGateway? gateway;
   final VipPaySheetLoginLauncher? loginLauncher;
+  final Future<VipPurchaseResult?> Function(BuildContext, VipPurchaseRequest)?
+  differenceUpgradeLauncher;
 
   @override
   State<_Host> createState() => _HostState();
@@ -237,6 +273,7 @@ final class _HostState extends State<_Host> {
       dataSource: widget.dataSource,
       paymentGateway: widget.gateway ?? _Gateway(),
       loginLauncher: widget.loginLauncher,
+      differenceUpgradeLauncher: widget.differenceUpgradeLauncher,
     );
     if (mounted) setState(() => _result = result);
   }
@@ -262,6 +299,7 @@ VipPurchaseSession _session({
   bool isLoggedIn = true,
   bool showWechatPay = true,
   VipPaymentChannel initialChannel = VipPaymentChannel.wechat,
+  bool hasPracticePackage = false,
 }) {
   return VipPurchaseSession(
     request: VipPurchaseRequest.popup(entry: VipPayEntry.fast300),
@@ -285,6 +323,7 @@ VipPurchaseSession _session({
     nickname: '',
     avatarUrl: '',
     benefitLines: const [],
+    hasPracticePackage: hasPracticePackage,
   );
 }
 

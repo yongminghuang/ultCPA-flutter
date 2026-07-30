@@ -73,6 +73,7 @@ import 'package:ultcpa_flutter/src/startup/privacy_consent_dialog.dart';
 import 'package:ultcpa_flutter/src/startup/startup_coordinator.dart';
 import 'package:ultcpa_flutter/src/startup/startup_splash_page.dart';
 import 'package:ultcpa_flutter/src/teacher_course/teacher_course_models.dart';
+import 'package:ultcpa_flutter/src/teacher_course/course_video_player_page.dart';
 import 'package:ultcpa_flutter/src/teacher_course/teacher_course_page.dart';
 import 'package:ultcpa_flutter/src/teacher_course/teacher_course_progress_store.dart';
 import 'package:ultcpa_flutter/src/teacher_course/teacher_course_repository.dart';
@@ -271,6 +272,53 @@ void main() {
       expect(source.modules, [module]);
     },
   );
+
+  testWidgets('opens a teacher course video from the Course tab', (
+    tester,
+  ) async {
+    final dataSource = _DataSource()
+      ..courseData = const CourseTabData(
+        categoryLabel: '初级社工',
+        subjects: _subjects,
+        selectedSubject: CategorySubject(id: 1023, name: '社工实务'),
+        courseType: CourseType.intensive,
+        items: [
+          CourseMedia(
+            id: 902,
+            subject: '社工实务',
+            courseType: '大招精讲',
+            title: '名师技巧精讲',
+            coverUrl: '',
+            mediaUrl: 'https://example.com/course.mp4',
+          ),
+        ],
+        isLoggedIn: true,
+        hasVideoAccess: true,
+      );
+    await tester.pumpWidget(
+      StartupApp(
+        consentStore: _ConsentStore(true),
+        initializer: _Initializer(),
+        delay: (_) async {},
+        mainTabsDataSource: dataSource,
+        teacherCourseProgressStore: MemoryTeacherCourseProgressStore(),
+        teacherCourseVideoContentBuilder: (_, item, position) => ColoredBox(
+          color: Colors.black,
+          child: Text('COURSE-PLAYER:${item.id}:${position.inSeconds}'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('技巧课程'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('course-media-902')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CourseVideoPlayerPage), findsOneWidget);
+    expect(find.text('名师技巧精讲'), findsOneWidget);
+    expect(find.text('COURSE-PLAYER:902:0'), findsOneWidget);
+  });
 
   testWidgets('opens module practice from the ready home destination', (
     tester,
@@ -2383,6 +2431,7 @@ final class _DataSource implements MainTabsDataSource {
   final MineTabData mineData;
   int homeLoadCalls = 0;
   int mineLoadCalls = 0;
+  CourseTabData? courseData;
 
   @override
   Future<HomeTabData> loadHome({
@@ -2398,13 +2447,14 @@ final class _DataSource implements MainTabsDataSource {
     required CourseType courseType,
     String? subject,
   }) async {
-    return CourseTabData(
-      categoryLabel: '初级社工',
-      subjects: _subjects,
-      selectedSubject: _subjects.first,
-      courseType: courseType,
-      items: const [],
-    );
+    return courseData ??
+        CourseTabData(
+          categoryLabel: '初级社工',
+          subjects: _subjects,
+          selectedSubject: _subjects.first,
+          courseType: courseType,
+          items: const [],
+        );
   }
 
   @override

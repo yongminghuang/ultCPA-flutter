@@ -9,6 +9,36 @@ import 'package:ultcpa_flutter/src/vip_purchase/vip_purchase_repository.dart';
 import 'package:ultcpa_flutter/src/vip_purchase/vip_purchase_success_page.dart';
 
 void main() {
+  testWidgets('eligible practice member opens difference upgrade before SKUs', (
+    tester,
+  ) async {
+    final pending = Completer<VipPurchaseResult?>();
+    VipPurchaseRequest? differenceRequest;
+    final dataSource = _DataSource(
+      session: _session(expanded: false, hasPracticePackage: true),
+      skuHandler: (_, _) async => _selection(),
+    );
+
+    await tester.pumpWidget(
+      _app(
+        dataSource,
+        differenceUpgradeLauncher: (_, request) {
+          differenceRequest = request;
+          return pending.future;
+        },
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(differenceRequest?.differencePayPageSourceId, 2002);
+    expect(dataSource.skuRequests, isEmpty);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    pending.complete(null);
+    await tester.pump();
+  });
+
   testWidgets(
     'renders Android expanded session header tabs prices and content',
     (tester) async {
@@ -663,6 +693,8 @@ Widget _app(
   VipPurchaseLoginLauncher? loginLauncher,
   VipPurchaseActionLauncher? customerServiceLauncher,
   VipPurchaseActionLauncher? agreementLauncher,
+  Future<VipPurchaseResult?> Function(BuildContext, VipPurchaseRequest)?
+  differenceUpgradeLauncher,
 }) {
   return MaterialApp(
     home: VipPurchasePage(
@@ -672,6 +704,7 @@ Widget _app(
       loginLauncher: loginLauncher,
       customerServiceLauncher: customerServiceLauncher,
       agreementLauncher: agreementLauncher,
+      differenceUpgradeLauncher: differenceUpgradeLauncher,
     ),
   );
 }
@@ -697,6 +730,7 @@ VipPurchaseSession _session({
   String level = '中级会计',
   bool showWechatPay = true,
   bool isLoggedIn = true,
+  bool hasPracticePackage = false,
 }) {
   return VipPurchaseSession(
     request: const VipPurchaseRequest.mine(),
@@ -746,6 +780,7 @@ VipPurchaseSession _session({
             ),
           ]
         : const [],
+    hasPracticePackage: hasPracticePackage,
   );
 }
 

@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ultcpa_flutter/src/learning_materials/learning_materials_models.dart';
 import 'package:ultcpa_flutter/src/learning_materials/learning_materials_repository.dart';
 import 'package:ultcpa_flutter/src/network/app_api_client.dart';
 import 'package:ultcpa_flutter/src/storage/legacy_app_state_store.dart';
@@ -48,7 +47,7 @@ void main() {
 
     expect(snapshot.libraryTitle, '中级社工资料库');
     expect(tabs.map((tab) => tab.id), [101, 102]);
-    expect(page.records.map((item) => item.id), [1]);
+    expect(page.records.map((item) => item.id), [1, 2]);
     expect(page.hasMore, isTrue);
     expect(api.calls, [
       const _Call('/app/shelf/getShelfTree', {'shelfId': 88}),

@@ -56,7 +56,41 @@ void main() {
 
     expect(calls, 2);
     expect(find.byKey(const ValueKey('practice-question')), findsOneWidget);
-    expect(find.text('题目 1'), findsOneWidget);
+    expect(_questionStem('题目 1'), findsOneWidget);
+  });
+
+  testWidgets('toolbar exposes a tappable Android back affordance', (
+    tester,
+  ) async {
+    final navigatorKey = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: navigatorKey,
+        home: const SizedBox(key: ValueKey('practice-test-host')),
+      ),
+    );
+    unawaited(
+      navigatorKey.currentState!.push<void>(
+        MaterialPageRoute(
+          builder: (_) => PracticePage(
+            request: _request,
+            dataSource: _DataSource(
+              (_) async => _catalog([PracticeQuestionItem(_question('1'))]),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final back = find.byKey(const ValueKey('practice-back'));
+    expect(back, findsOneWidget);
+
+    await tester.tap(back);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PracticePage), findsNothing);
+    expect(find.byKey(const ValueKey('practice-test-host')), findsOneWidget);
   });
 
   testWidgets('applies and persists Android practice settings', (tester) async {
@@ -84,13 +118,74 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('practice-settings')));
     await tester.pumpAndSettle();
+
+    final sheet = find.byKey(const ValueKey('practice-settings-sheet'));
+    expect(sheet, findsOneWidget);
+    expect(
+      find.descendant(of: sheet, matching: find.text('设置')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('practice-settings-close')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('practice-font-size-slider')),
+      findsOneWidget,
+    );
     expect(find.text('答对自动跳转下一题'), findsOneWidget);
+
+    final scaffoldHeight = tester.getSize(find.byType(Scaffold).first).height;
+    expect(
+      tester.getSize(sheet).height,
+      lessThan(scaffoldHeight * 0.72),
+      reason: '普通设置面板应按内容高度展示，而不是固定占屏幕 72%',
+    );
+
     await tester.tap(find.text('护眼'));
     await tester.pumpAndSettle();
 
     expect(settingsStore.saved.last.themeMode, PracticeThemeMode.eyeCare);
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
     expect(scaffold.backgroundColor, const Color(0xFFF9F6ED));
+
+    await tester.tap(find.byKey(const ValueKey('practice-settings-close')));
+    await tester.pumpAndSettle();
+    expect(sheet, findsNothing);
+  });
+
+  testWidgets('renders the type inline and keeps question tags left aligned', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PracticePage(
+          request: _request,
+          dataSource: _DataSource(
+            (_) async => _catalog([
+              PracticeQuestionItem(_question('1', tags: '2023年真题')),
+            ]),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final typeRect = tester.getRect(find.text('单选题'));
+    final stemRect = tester.getRect(_questionStem('题目 1'));
+    final tagRect = tester.getRect(find.text('2023年真题'));
+    final collectionRect = tester.getRect(
+      find.byKey(const ValueKey('practice-collection-toggle')),
+    );
+    final pageWidth = tester.getSize(find.byType(Scaffold).first).width;
+
+    expect(typeRect.left, inInclusiveRange(stemRect.left, stemRect.left + 16));
+    expect(typeRect.top, lessThan(stemRect.bottom));
+    expect(typeRect.bottom, greaterThan(stemRect.top));
+    expect(tagRect.top, greaterThan(stemRect.bottom));
+    expect(tagRect.left, lessThan(pageWidth / 2));
+    expect(collectionRect.left, lessThan(pageWidth / 2));
+    expect(tagRect.right, lessThanOrEqualTo(collectionRect.left));
   });
 
   testWidgets('auto-next follows the persisted Android setting', (
@@ -124,7 +219,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('practice-option-A')));
     await tester.pump(const Duration(milliseconds: 421));
 
-    expect(find.text('题目 2'), findsOneWidget);
+    expect(_questionStem('题目 2'), findsOneWidget);
   });
 
   testWidgets('always shows Android skill shortcut and loads current skills', (
@@ -189,6 +284,174 @@ void main() {
     );
   });
 
+  testWidgets('answering automatically renders related mnemonic content', (
+    tester,
+  ) async {
+    final source = _DataSource(
+      (_) async => _catalog([PracticeQuestionItem(_question('1'))]),
+      skillLoader: (questionId) async => [_skill('related-$questionId').skill],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PracticePage(request: _request, dataSource: source),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(source.skillQuestionIds, isEmpty);
+    expect(find.text('速记技巧'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('practice-option-A')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(source.skillQuestionIds, ['1']);
+    expect(find.text('速记技巧'), findsOneWidget);
+    expect(find.text('技巧 related-1', findRichText: true), findsOneWidget);
+    expect(find.text('技巧解释 related-1', findRichText: true), findsOneWidget);
+  });
+
+  testWidgets('stale skill requests cannot overwrite a new chapter session', (
+    tester,
+  ) async {
+    final staleSkills = Completer<List<SkillMnemonic>>();
+    var skillLoadCount = 0;
+    final source = _DataSource(
+      (request) async {
+        final chapterRequest = request as ChapterPracticeRequest;
+        if (chapterRequest.entryMode == ChapterPracticeEntryMode.automatic) {
+          return _chapterCatalog(
+            [PracticeQuestionItem(_question('1'))],
+            catalogIndex: 2,
+            chapterIndex: 0,
+            title: '下一章节',
+          );
+        }
+        return _chapterCatalog(
+          [PracticeQuestionItem(_question('1'))],
+          nextChapter: const PracticeChapterTarget(
+            catalogIndex: 2,
+            chapterIndex: 0,
+            title: '下一章节',
+            unlocked: true,
+          ),
+        );
+      },
+      skillLoader: (_) {
+        skillLoadCount += 1;
+        if (skillLoadCount == 1) return staleSkills.future;
+        return Future.value([_skill('current').skill]);
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PracticePage(request: _chapterRequest(), dataSource: source),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('practice-option-A')));
+    await tester.pump();
+    expect(skillLoadCount, 1);
+
+    await tester.tap(find.byKey(const ValueKey('practice-next')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('practice-option-A')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(skillLoadCount, 2);
+    expect(
+      find.byKey(const ValueKey('practice-inline-skills-loading')),
+      findsNothing,
+    );
+    expect(find.text('技巧 current', findRichText: true), findsOneWidget);
+
+    staleSkills.complete([_skill('stale').skill]);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('技巧 stale', findRichText: true), findsNothing);
+    expect(find.text('技巧 current', findRichText: true), findsOneWidget);
+  });
+
+  testWidgets('a failed chapter switch keeps the current skill request valid', (
+    tester,
+  ) async {
+    final pendingSkills = Completer<List<SkillMnemonic>>();
+    final source = _DataSource((request) async {
+      final chapterRequest = request as ChapterPracticeRequest;
+      if (chapterRequest.entryMode == ChapterPracticeEntryMode.automatic) {
+        throw StateError('offline');
+      }
+      return _chapterCatalog(
+        [PracticeQuestionItem(_question('1'))],
+        nextChapter: const PracticeChapterTarget(
+          catalogIndex: 2,
+          chapterIndex: 0,
+          title: '下一章节',
+          unlocked: true,
+        ),
+      );
+    }, skillLoader: (_) => pendingSkills.future);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PracticePage(request: _chapterRequest(), dataSource: source),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('practice-option-A')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('practice-next')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('章节加载失败，请稍后重试'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('practice-inline-skills-loading')),
+      findsOneWidget,
+    );
+
+    pendingSkills.complete([_skill('current').skill]);
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('practice-inline-skills-loading')),
+      findsNothing,
+    );
+    expect(find.text('技巧 current', findRichText: true), findsOneWidget);
+  });
+
+  testWidgets('skill shortcut exposes a visible pulse mid-frame', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PracticePage(
+          request: _request,
+          dataSource: _DataSource(
+            (_) async => _catalog([PracticeQuestionItem(_question('1'))]),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final pulse = find.byKey(const ValueKey('practice-skill-pulse'));
+    expect(pulse, findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 250));
+
+    final transform = tester.widget<Transform>(pulse);
+    expect(transform.transform.getMaxScaleOnAxis(), greaterThan(1));
+    final opacity = find.descendant(of: pulse, matching: find.byType(Opacity));
+    expect(opacity, findsOneWidget);
+    expect(tester.widget<Opacity>(opacity).opacity, lessThan(1));
+  });
+
   testWidgets(
     'renders a skill card then submits and persists a single choice',
     (tester) async {
@@ -217,7 +480,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('practice-next')));
       await tester.pump();
       expect(find.text('单选题'), findsOneWidget);
-      expect(find.text('题目 1'), findsOneWidget);
+      expect(_questionStem('题目 1'), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('practice-option-A')));
       await tester.pump();
@@ -276,7 +539,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('practice-previous')));
     await tester.pump();
-    expect(find.text('题目 1'), findsOneWidget);
+    expect(_questionStem('题目 1'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('practice-answer-card')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('practice-answer-sheet')), findsOneWidget);
@@ -284,9 +547,27 @@ void main() {
       find.byKey(const ValueKey('practice-answer-status-1-right')),
       findsOneWidget,
     );
+    final unanswered = tester.widget<Text>(
+      find.byKey(const ValueKey('practice-answer-status-0-open')),
+    );
+    expect(unanswered.style?.fontSize, 14);
+    expect(unanswered.style?.fontWeight, FontWeight.w400);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('practice-answer-cell-0'))),
+      const Size.square(44),
+    );
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const ValueKey('practice-answer-status-1-right')),
+          )
+          .style
+          ?.fontWeight,
+      FontWeight.w400,
+    );
     await tester.tap(find.byKey(const ValueKey('practice-answer-cell-1')));
     await tester.pumpAndSettle();
-    expect(find.text('题目 2'), findsOneWidget);
+    expect(_questionStem('题目 2'), findsOneWidget);
   });
 
   testWidgets('answer card clears remote and local practice records', (
@@ -378,7 +659,7 @@ void main() {
     expect(find.text('答题记录同步失败，请稍后重试'), findsOneWidget);
   });
 
-  testWidgets('submits Android-style question correction feedback', (
+  testWidgets('answered questions do not expose a correction feedback entry', (
     tester,
   ) async {
     final source = _DataSource(
@@ -393,19 +674,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('practice-option-A')));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('practice-correction')));
-    await tester.pumpAndSettle();
 
-    await tester.tap(find.text('答案有误'));
-    await tester.enterText(find.byType(TextField), '正确答案应为 B');
-    await tester.tap(find.text('提交'));
-    await tester.pumpAndSettle();
-
-    expect(source.corrections, hasLength(1));
-    expect(source.corrections.single.serialNumber, 1);
-    expect(source.corrections.single.type, 2);
-    expect(source.corrections.single.content, '正确答案应为 B');
-    expect(find.text('提交完成,感谢您的反馈'), findsOneWidget);
+    expect(find.text('反馈'), findsNothing);
+    expect(find.byKey(const ValueKey('practice-correction')), findsNothing);
+    expect(source.corrections, isEmpty);
   });
 
   testWidgets('reports a pending membership boundary without saving', (
@@ -683,12 +955,12 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('题目 1'), findsNothing);
-      expect(find.text('题目 2'), findsOneWidget);
+      expect(_questionStem('题目 1'), findsNothing);
+      expect(_questionStem('题目 2'), findsOneWidget);
       pending.completeError(StateError('offline'));
       await tester.pumpAndSettle();
 
-      expect(find.text('题目 2'), findsOneWidget);
+      expect(_questionStem('题目 2'), findsOneWidget);
       expect(find.text('操作失败，请稍后重试'), findsOneWidget);
     },
   );
@@ -763,18 +1035,18 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('practice-remove-wrong')));
     await tester.pump();
-    expect(find.text('题目 1'), findsOneWidget);
+    expect(_questionStem('题目 1'), findsOneWidget);
 
     pending.complete();
     await tester.pumpAndSettle();
-    expect(find.text('题目 1'), findsNothing);
-    expect(find.text('题目 2'), findsOneWidget);
+    expect(_questionStem('题目 1'), findsNothing);
+    expect(_questionStem('题目 2'), findsOneWidget);
     expect(find.text('已移除'), findsOneWidget);
 
     source.failWrongRemoval = true;
     await tester.tap(find.byKey(const ValueKey('practice-remove-wrong')));
     await tester.pumpAndSettle();
-    expect(find.text('题目 2'), findsOneWidget);
+    expect(_questionStem('题目 2'), findsOneWidget);
     expect(find.text('移除失败，请稍后重试'), findsOneWidget);
   });
 
@@ -803,13 +1075,13 @@ void main() {
 
     expect(source.recordedCorrect.map((question) => question.id), ['1']);
     expect(source.removedWrong.map((question) => question.id), ['1']);
-    expect(find.text('题目 2'), findsOneWidget);
+    expect(_questionStem('题目 2'), findsOneWidget);
     expect(find.text('已移除'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('practice-option-B')));
     await tester.pumpAndSettle();
     expect(source.recordedCorrect, hasLength(1));
-    expect(find.text('题目 2'), findsOneWidget);
+    expect(_questionStem('题目 2'), findsOneWidget);
   });
 
   testWidgets('delayed automatic removal targets the submitted question', (
@@ -837,12 +1109,12 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('practice-next')));
     await tester.pump();
-    expect(find.text('题目 2'), findsOneWidget);
+    expect(_questionStem('题目 2'), findsOneWidget);
 
     pending.complete(true);
     await tester.pumpAndSettle();
 
-    expect(find.text('题目 2'), findsOneWidget);
+    expect(_questionStem('题目 2'), findsOneWidget);
     expect(source.removedWrong.single.id, '1');
   });
 
@@ -904,7 +1176,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('题目 2'), findsOneWidget);
+    expect(_questionStem('题目 2'), findsOneWidget);
     expect(progress.loadedPositions, [
       (moduleId: 42, catalogIndex: 1, chapterIndex: 2),
     ]);
@@ -939,7 +1211,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('题目 1'), findsOneWidget, reason: mode.name);
+      expect(_questionStem('题目 1'), findsOneWidget, reason: mode.name);
       expect(progress.loadedPositions, isEmpty, reason: mode.name);
       expect(progress.savedPositions.last.position, 0, reason: mode.name);
       await tester.pumpWidget(const MaterialApp(home: SizedBox()));
@@ -979,7 +1251,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(progress.savedPositions.map((value) => value.position), [1, 0, 2]);
-      expect(find.text('题目 3'), findsOneWidget);
+      expect(_questionStem('题目 3'), findsOneWidget);
     },
   );
 
@@ -1006,7 +1278,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('题目 2'), findsOneWidget);
+    expect(_questionStem('题目 2'), findsOneWidget);
     expect(progress.loadedShelfIds, [111]);
     expect(progress.savedPositions, isEmpty);
   });
@@ -1034,7 +1306,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('题目 3'), findsOneWidget);
+    expect(_questionStem('题目 3'), findsOneWidget);
   });
 
   testWidgets('fast navigation persists previous next and answer-card jumps', (
@@ -1073,7 +1345,7 @@ void main() {
       (shelfId: 111, position: 0),
       (shelfId: 111, position: 2),
     ]);
-    expect(find.text('题目 3'), findsOneWidget);
+    expect(_questionStem('题目 3'), findsOneWidget);
   });
 
   testWidgets('ordinary and chapter requests never touch flat progress', (
@@ -1152,7 +1424,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('practice-next')));
     await tester.pumpAndSettle();
 
-    expect(find.text('题目 2'), findsOneWidget);
+    expect(_questionStem('题目 2'), findsOneWidget);
     expect(find.text('已学完，自动进入下一章节'), findsOneWidget);
     expect(source.loadedRequests, hasLength(2));
     final nextRequest = source.loadedRequests.last as ChapterPracticeRequest;
@@ -1189,7 +1461,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('章节练习需解锁，请开通会员后继续'), findsOneWidget);
-    expect(find.text('题目 1'), findsOneWidget);
+    expect(_questionStem('题目 1'), findsOneWidget);
     expect(find.byType(PracticeResultPage), findsNothing);
     expect(source.loadedRequests, hasLength(1));
   });
@@ -1229,7 +1501,7 @@ void main() {
 
     final redo = source.loadedRequests.last as ChapterPracticeRequest;
     expect(redo.entryMode, ChapterPracticeEntryMode.redo);
-    expect(find.text('题目 1'), findsOneWidget);
+    expect(_questionStem('题目 1'), findsOneWidget);
     expect(find.text('正确答案：A'), findsNothing);
     expect(progress.savedPositions.last.position, 0);
   });
@@ -1257,7 +1529,7 @@ void main() {
     await tester.tap(find.text('重练本章'));
     await tester.pumpAndSettle();
 
-    expect(find.text('题目 1'), findsOneWidget);
+    expect(_questionStem('题目 1'), findsOneWidget);
     expect(find.text('正确答案：A'), findsOneWidget);
     expect(find.text('重练失败，请稍后重试'), findsOneWidget);
     expect(find.byKey(const ValueKey('practice-error')), findsNothing);
@@ -1282,7 +1554,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('题目 2'), findsOneWidget);
+    expect(_questionStem('题目 2'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('practice-next')));
     await tester.pumpAndSettle();
@@ -1333,7 +1605,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('题目 102'), findsOneWidget);
+      expect(_questionStem('题目 102'), findsOneWidget);
       expect(
         tester
             .widget<Text>(
@@ -1396,7 +1668,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('题目 102'), findsOneWidget);
+    expect(_questionStem('题目 102'), findsOneWidget);
     expect(find.text('正确答案：A'), findsOneWidget);
     expect(source.saved, isEmpty);
 
@@ -1589,6 +1861,18 @@ void main() {
   });
 }
 
+Finder _questionStem(String title) {
+  return find.byWidgetPredicate((widget) {
+    if (widget.key != const ValueKey('practice-question-stem')) return false;
+    return switch (widget) {
+      Text(:final data, :final textSpan) =>
+        (data ?? textSpan?.toPlainText() ?? '').trim().endsWith(title),
+      RichText(:final text) => text.toPlainText().trim().endsWith(title),
+      _ => false,
+    };
+  });
+}
+
 const _request = SkillPracticeRequest(skillId: 'skill-1');
 
 const _dailyModule = HomeModule(id: 42, name: '每日一招', page: '每日一招', tag: '');
@@ -1678,6 +1962,8 @@ PracticeQuestion _question(
   String keyword = '',
   String choose = '',
   bool? isRight,
+  String tags = '',
+  bool isCollected = false,
 }) {
   return PracticeQuestion.fromMap({
     'questionId': id,
@@ -1689,6 +1975,8 @@ PracticeQuestion _question(
     'keyword': keyword,
     'choose': choose,
     'isRight': ?isRight,
+    'tags': tags,
+    'isCollect': isCollected,
     'subject': '社工实务',
     'level': '初级社工',
   });

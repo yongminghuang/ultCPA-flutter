@@ -181,6 +181,8 @@ void main() {
 
     expect(data.courseType, CourseType.intensive);
     expect(data.selectedSubject.name, '综合能力');
+    expect(data.isLoggedIn, isTrue);
+    expect(data.hasVideoAccess, isFalse);
     expect(data.items.single.id, 9007199254740993);
     expect(
       data.items.single.coverUrl,

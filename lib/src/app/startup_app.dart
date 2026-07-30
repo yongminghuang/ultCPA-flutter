@@ -37,6 +37,7 @@ import '../exam/exam_repository.dart';
 import '../exam/exam_result_page.dart';
 import '../learning_materials/learning_materials_feed_page.dart';
 import '../learning_materials/learning_materials_home_section.dart';
+import '../learning_materials/learning_materials_models.dart';
 import '../learning_materials/learning_materials_navigation.dart';
 import '../learning_materials/learning_materials_repository.dart';
 import '../main_tabs/home_module_route.dart';
@@ -62,6 +63,9 @@ import '../pre_exam_secret_paper/pre_exam_secret_paper_page.dart';
 import '../pre_exam_secret_paper/pre_exam_secret_paper_repository.dart';
 import '../purchase_history/purchase_history_data_source.dart';
 import '../purchase_history/purchase_history_page.dart';
+import '../promotion_sharing/promotion_share_gateway.dart';
+import '../promotion_sharing/promotion_sharing_page.dart';
+import '../promotion_sharing/promotion_sharing_repository.dart';
 import '../settings/settings_data_source.dart';
 import '../settings/settings_navigation.dart';
 import '../settings/settings_page.dart';
@@ -71,6 +75,7 @@ import '../startup/startup_coordinator.dart';
 import '../startup/startup_remote_initializer.dart';
 import '../startup/startup_splash_page.dart';
 import '../teacher_course/teacher_course_page.dart';
+import '../teacher_course/course_video_player_page.dart';
 import '../teacher_course/teacher_course_progress_store.dart';
 import '../teacher_course/teacher_course_repository.dart';
 import '../skill_mnemonics/skill_mnemonics_detail_page.dart';
@@ -83,11 +88,13 @@ import '../smart_card/smart_card_page.dart';
 import '../smart_card/smart_card_repository.dart';
 import '../vip_purchase/vip_difference_upgrade_page.dart';
 import '../vip_purchase/vip_difference_upgrade_repository.dart';
+import '../vip_purchase/vip_checkout_coordinator.dart';
 import '../vip_purchase/vip_pay_sheet.dart';
 import '../vip_purchase/vip_payment_gateway.dart';
 import '../vip_purchase/vip_purchase_models.dart';
 import '../vip_purchase/vip_purchase_page.dart';
 import '../vip_purchase/vip_purchase_repository.dart';
+import '../vip_purchase/vip_purchase_success_page.dart';
 import '../web/agreement_webview_page.dart';
 import '../web/legacy_webview_page.dart';
 
@@ -113,6 +120,8 @@ final class StartupApp extends StatefulWidget {
     this.learningMaterialsPaymentCallback,
     this.learningMaterialsShareCallback,
     this.learningMaterialsBannerCallback,
+    this.promotionSharingDataSource,
+    this.promotionShareGateway,
     this.teacherCourseDataSource,
     this.teacherCourseProgressStore,
     this.teacherCourseVideoContentBuilder,
@@ -173,6 +182,8 @@ final class StartupApp extends StatefulWidget {
   final LearningMaterialsPaymentCallback? learningMaterialsPaymentCallback;
   final LearningMaterialsShareCallback? learningMaterialsShareCallback;
   final LearningMaterialsBannerCallback? learningMaterialsBannerCallback;
+  final PromotionSharingDataSource? promotionSharingDataSource;
+  final PromotionShareGateway? promotionShareGateway;
   final TeacherCourseDataSource? teacherCourseDataSource;
   final TeacherCourseProgressStore? teacherCourseProgressStore;
   final Html5VideoContentBuilder? teacherCourseVideoContentBuilder;
@@ -235,6 +246,8 @@ final class _StartupAppState extends State<StartupApp>
   late final AppUpdateFileTransfer _appUpdateFileTransfer;
   late final MainTabsDataSource _mainTabsDataSource;
   late final LearningMaterialsDataSource _learningMaterialsDataSource;
+  late final PromotionSharingDataSource _promotionSharingDataSource;
+  late final PromotionShareGateway _promotionShareGateway;
   late final TeacherCourseDataSource _teacherCourseDataSource;
   late final TeacherCourseProgressStore _teacherCourseProgressStore;
   late final SkillMnemonicsDataSource _skillMnemonicsDataSource;
@@ -319,6 +332,11 @@ final class _StartupAppState extends State<StartupApp>
     _learningMaterialsDataSource =
         widget.learningMaterialsDataSource ??
         LearningMaterialsRepository(api: apiClient, stateStore: requestContext);
+    _promotionSharingDataSource =
+        widget.promotionSharingDataSource ??
+        PromotionSharingRepository(api: apiClient, stateStore: requestContext);
+    _promotionShareGateway =
+        widget.promotionShareGateway ?? MethodChannelPromotionShareGateway();
     _teacherCourseDataSource =
         widget.teacherCourseDataSource ??
         TeacherCourseRepository(api: apiClient, stateStore: requestContext);
@@ -694,6 +712,47 @@ final class _StartupAppState extends State<StartupApp>
     }
   }
 
+  Future<void> _openCourseMedia(
+    BuildContext context,
+    CourseMedia media,
+    CourseTabData data,
+  ) async {
+    if (!data.isLoggedIn) {
+      final login = await _openVipLogin(context);
+      if (!context.mounted || login == null) return;
+    }
+    if (!media.hasPlayableMedia) {
+      if (data.hasVideoAccess) {
+        _showModuleMessage(context, '暂无视频');
+      } else {
+        await _openVipPaySheet(
+          context,
+          VipPayEntry.courseTrial,
+          defaultProductType: VipProductType.course,
+        );
+      }
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (pageContext) => CourseVideoPlayerPage(
+          media: media,
+          progressStore: _teacherCourseProgressStore,
+          hasVideoAccess: data.hasVideoAccess,
+          videoContentBuilder: widget.teacherCourseVideoContentBuilder,
+          onPurchase: () async {
+            final result = await _openVipPaySheet(
+              pageContext,
+              VipPayEntry.courseTrial,
+              defaultProductType: VipProductType.course,
+            );
+            return result == VipPurchaseResult.paid;
+          },
+        ),
+      ),
+    );
+  }
+
   Future<void> _openNormalExam(BuildContext context, ExamRequest request) {
     return Navigator.of(context).push<void>(
       MaterialPageRoute(
@@ -738,9 +797,13 @@ final class _StartupAppState extends State<StartupApp>
           dataSource: _learningMaterialsDataSource,
           htmlContentBuilder: widget.learningMaterialsHtmlContentBuilder,
           videoContentBuilder: widget.learningMaterialsVideoContentBuilder,
-          onPayment: widget.learningMaterialsPaymentCallback,
-          onShare: widget.learningMaterialsShareCallback,
-          onBannerTap: widget.learningMaterialsBannerCallback,
+          onPayment:
+              widget.learningMaterialsPaymentCallback ?? _payLearningMaterials,
+          onShare:
+              widget.learningMaterialsShareCallback ?? _shareLearningMaterials,
+          onBannerTap:
+              widget.learningMaterialsBannerCallback ??
+              _openLearningMaterialsJump,
         ),
       ),
     );
@@ -925,6 +988,7 @@ final class _StartupAppState extends State<StartupApp>
               key: ValueKey('main-tabs-$_mainTabsRevision'),
               dataSource: _mainTabsDataSource,
               moduleLauncher: _launchHomeModule,
+              courseMediaLauncher: _openCourseMedia,
               learningMaterialsSectionBuilder: (context, module) =>
                   LearningMaterialsHomeSection(
                     module: module,
@@ -934,9 +998,15 @@ final class _StartupAppState extends State<StartupApp>
                         widget.learningMaterialsHtmlContentBuilder,
                     videoContentBuilder:
                         widget.learningMaterialsVideoContentBuilder,
-                    onPayment: widget.learningMaterialsPaymentCallback,
-                    onShare: widget.learningMaterialsShareCallback,
-                    onBannerTap: widget.learningMaterialsBannerCallback,
+                    onPayment:
+                        widget.learningMaterialsPaymentCallback ??
+                        _payLearningMaterials,
+                    onShare:
+                        widget.learningMaterialsShareCallback ??
+                        _shareLearningMaterials,
+                    onBannerTap:
+                        widget.learningMaterialsBannerCallback ??
+                        _openLearningMaterialsJump,
                   ),
               mineAppUpdateLauncher: _checkForAppUpdate,
               mineCustomerServiceLauncher: _openCustomerService,
@@ -999,6 +1069,7 @@ final class _StartupAppState extends State<StartupApp>
           loginLauncher: _openVipLogin,
           customerServiceLauncher: _openCustomerService,
           agreementLauncher: _openVipAgreement,
+          differenceUpgradeLauncher: _openVipDifferenceUpgrade,
         ),
       ),
     );
@@ -1017,6 +1088,7 @@ final class _StartupAppState extends State<StartupApp>
             loginLauncher: _openVipLogin,
             customerServiceLauncher: _openCustomerService,
             agreementLauncher: _openVipAgreement,
+            differenceUpgradeLauncher: _openVipDifferenceUpgrade,
           ),
         ),
       );
@@ -1053,6 +1125,7 @@ final class _StartupAppState extends State<StartupApp>
           loginLauncher: _openVipLogin,
           agreementLauncher: _openVipAgreement,
           customerServiceLauncher: _openCustomerService,
+          differenceUpgradeLauncher: _openVipDifferenceUpgrade,
         );
       }
       if (result == VipPurchaseResult.paid && mounted) {
@@ -1085,6 +1158,7 @@ final class _StartupAppState extends State<StartupApp>
           loginLauncher: _openVipLogin,
           agreementLauncher: _openVipAgreement,
           customerServiceLauncher: _openCustomerService,
+          differenceUpgradeLauncher: _openVipDifferenceUpgrade,
         );
       } else {
         result = await Navigator.of(context).push<VipPurchaseResult>(
@@ -1096,6 +1170,7 @@ final class _StartupAppState extends State<StartupApp>
               loginLauncher: _openVipLogin,
               customerServiceLauncher: _openCustomerService,
               agreementLauncher: _openVipAgreement,
+              differenceUpgradeLauncher: _openVipDifferenceUpgrade,
             ),
           ),
         );
@@ -1125,6 +1200,7 @@ final class _StartupAppState extends State<StartupApp>
             loginLauncher: _openVipLogin,
             customerServiceLauncher: _openCustomerService,
             agreementLauncher: _openVipAgreement,
+            differenceUpgradeLauncher: _openVipDifferenceUpgrade,
           ),
         ),
       );
@@ -1143,6 +1219,58 @@ final class _StartupAppState extends State<StartupApp>
     ).pushNamed(PhoneLoginPage.routeName);
     if (result is! Map) return null;
     return Map<String, dynamic>.from(result);
+  }
+
+  Future<VipPurchaseResult?> _openVipDifferenceUpgrade(
+    BuildContext context,
+    VipPurchaseRequest request,
+  ) {
+    return Navigator.of(context).push<VipPurchaseResult>(
+      MaterialPageRoute<VipPurchaseResult>(
+        builder: (_) => VipDifferenceUpgradePage(
+          request: request,
+          dataSource: _vipDifferenceUpgradeDataSource,
+          purchaseDataSource: _vipPurchaseDataSource,
+          commodityOrderDataSource: _vipCommodityOrderDataSource,
+          paymentGateway: _vipPaymentGateway,
+          normalPurchaseLauncher: _presentVipPurchaseRequest,
+          loginLauncher: _openVipLogin,
+          agreementLauncher: _openVipAgreement,
+          customerServiceLauncher: _openCustomerService,
+        ),
+      ),
+    );
+  }
+
+  Future<VipPurchaseResult?> _presentVipPurchaseRequest(
+    BuildContext context,
+    VipPurchaseRequest request,
+  ) {
+    if (request.presentation == VipPaymentPresentation.sheet) {
+      return showVipPaySheet(
+        context,
+        request: request,
+        dataSource: _vipPurchaseDataSource,
+        paymentGateway: _vipPaymentGateway,
+        loginLauncher: _openVipLogin,
+        agreementLauncher: _openVipAgreement,
+        customerServiceLauncher: _openCustomerService,
+        differenceUpgradeLauncher: _openVipDifferenceUpgrade,
+      );
+    }
+    return Navigator.of(context).push<VipPurchaseResult>(
+      MaterialPageRoute<VipPurchaseResult>(
+        builder: (_) => VipPurchasePage(
+          request: request,
+          dataSource: _vipPurchaseDataSource,
+          paymentGateway: _vipPaymentGateway,
+          loginLauncher: _openVipLogin,
+          customerServiceLauncher: _openCustomerService,
+          agreementLauncher: _openVipAgreement,
+          differenceUpgradeLauncher: _openVipDifferenceUpgrade,
+        ),
+      ),
+    );
   }
 
   Future<void> _openVipAgreement(BuildContext context) {
@@ -1223,9 +1351,183 @@ final class _StartupAppState extends State<StartupApp>
         builder: (_) => LegacyWebViewPage(
           request: request,
           contentBuilder: widget.mineWebContentBuilder,
+          onInviteShare: _openPromotionSharing,
         ),
       ),
     );
+  }
+
+  Future<void> _openPromotionSharing(
+    BuildContext context,
+    String inviteContent,
+  ) {
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => PromotionSharingPage(
+          inviteContent: inviteContent,
+          dataSource: _promotionSharingDataSource,
+          shareGateway: _promotionShareGateway,
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _payLearningMaterials(
+    BuildContext context,
+    LearningMaterialsItem item,
+    LearningMaterialsPaymentChannel channel,
+  ) async {
+    if (_vipPaymentInFlight) return false;
+    final commodityId = item.commodityId.trim();
+    if (commodityId.isEmpty) {
+      _showModuleMessage(context, '商品信息异常');
+      return false;
+    }
+    _vipPaymentInFlight = true;
+    try {
+      final request = VipPurchaseRequest.source(
+        source: VipPaymentSource.learningMaterials,
+        allowDifferenceUpgrade: false,
+      );
+      var session = await _vipPurchaseDataSource.loadSession(request);
+      if (!context.mounted) return false;
+      if (!session.isLoggedIn) {
+        final login = await _openVipLogin(context);
+        if (!context.mounted || login == null) return false;
+        session = await _vipPurchaseDataSource.loadSession(request);
+      }
+      final coordinator = VipCheckoutCoordinator(
+        dataSource: _vipPurchaseDataSource,
+        paymentGateway: _vipPaymentGateway,
+      );
+      final outcome = await coordinator.checkoutCommodity(
+        session: session,
+        channel: channel == LearningMaterialsPaymentChannel.wechat
+            ? VipPaymentChannel.wechat
+            : VipPaymentChannel.alipay,
+        commodityId: commodityId,
+        commodityDataSource: _vipCommodityOrderDataSource,
+        isActive: () => context.mounted,
+      );
+      if (!context.mounted) return false;
+      switch (outcome.status) {
+        case VipCheckoutStatus.cancelled:
+          return false;
+        case VipCheckoutStatus.failed:
+          _showModuleMessage(context, outcome.message);
+          return false;
+        case VipCheckoutStatus.paid:
+          var summary = const VipPurchaseSuccessSummary.generic();
+          try {
+            summary = await _vipPurchaseDataSource.loadSuccessSummary(session);
+          } catch (_) {
+            // A confirmed commodity payment still reaches the success page.
+          }
+          if (!context.mounted) return true;
+          await Navigator.of(context).push<void>(
+            MaterialPageRoute<void>(
+              builder: (successContext) => VipPurchaseSuccessPage(
+                summary: summary,
+                onFinished: () => Navigator.of(successContext).pop(),
+                customerServiceLauncher: _openCustomerService,
+              ),
+            ),
+          );
+          return true;
+      }
+    } finally {
+      _vipPaymentInFlight = false;
+    }
+  }
+
+  Future<void> _shareLearningMaterials(
+    BuildContext context,
+    LearningMaterialsShareRequest request,
+  ) async {
+    final timeline = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              key: const ValueKey('learning-material-share-friend'),
+              leading: const Icon(Icons.chat_bubble_outline),
+              title: const Text('微信好友'),
+              onTap: () => Navigator.of(sheetContext).pop(false),
+            ),
+            ListTile(
+              key: const ValueKey('learning-material-share-moments'),
+              leading: const Icon(Icons.public),
+              title: const Text('朋友圈'),
+              onTap: () => Navigator.of(sheetContext).pop(true),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted || timeline == null) return;
+    try {
+      await _promotionShareGateway.shareWechatWebpage(
+        url: request.url,
+        title: request.title,
+        description: request.description,
+        timeline: timeline,
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      final message = error is PlatformException ? error.message : null;
+      _showModuleMessage(context, message ?? '分享失败');
+    }
+  }
+
+  Future<void> _openLearningMaterialsJump(
+    BuildContext context,
+    String jumpPage,
+  ) async {
+    final page = jumpPage.trim();
+    if (page.isEmpty) {
+      _showModuleMessage(context, '暂无可跳转页面');
+      return;
+    }
+    try {
+      final home = await _mainTabsDataSource.loadHome();
+      if (!context.mounted) return;
+      final candidates = <HomeModule>[
+        ...home.modules,
+        if (home.bigSkillCircleModule != null) home.bigSkillCircleModule!,
+        if (home.learningMaterialsModule != null) home.learningMaterialsModule!,
+      ];
+      HomeModule? target;
+      for (final module in candidates) {
+        if (module.page.trim() == page || module.name.trim() == page) {
+          target = module;
+          break;
+        }
+      }
+      final route = resolveHomeModuleRoute(page);
+      if (target == null && route is ReadyHomeModuleRoute) {
+        for (final module in candidates) {
+          if (resolveHomeModuleRoute(module.page) == route) {
+            target = module;
+            break;
+          }
+        }
+      }
+      if (target == null) {
+        if (route case ReadyHomeModuleRoute(
+          destination: HomeDestination.vipPurchase,
+        )) {
+          await _openHomeVipPurchase(context);
+          return;
+        }
+        _showModuleMessage(context, '该入口暂不受支持');
+        return;
+      }
+      await _launchHomeModule(context, target, home.bigSkillCircleModule);
+    } catch (_) {
+      if (context.mounted) _showModuleMessage(context, '页面加载失败，请稍后重试');
+    }
   }
 
   Future<AccountProfileResult?> _openMineProfile(BuildContext context) async {

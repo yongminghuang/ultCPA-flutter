@@ -3,15 +3,24 @@ import 'package:flutter/material.dart';
 import 'main_tabs_models.dart';
 import 'main_tabs_repository.dart';
 
+typedef CourseMediaLauncher =
+    Future<void> Function(
+      BuildContext context,
+      CourseMedia media,
+      CourseTabData data,
+    );
+
 final class CourseTabPage extends StatefulWidget {
   const CourseTabPage({
     required this.dataSource,
     this.selectionRevision = 0,
+    this.mediaLauncher,
     super.key,
   });
 
   final MainTabsDataSource dataSource;
   final int selectionRevision;
+  final CourseMediaLauncher? mediaLauncher;
 
   @override
   State<CourseTabPage> createState() => _CourseTabPageState();
@@ -141,7 +150,12 @@ final class _CourseTabPageState extends State<CourseTabPage> {
     return RefreshIndicator(
       onRefresh: _load,
       color: const Color(0xFF237DED),
-      child: _CourseList(data: _data!),
+      child: _CourseList(
+        data: _data!,
+        onItemTap: widget.mediaLauncher == null
+            ? null
+            : (media) => widget.mediaLauncher!(context, media, _data!),
+      ),
     );
   }
 }
@@ -245,9 +259,10 @@ final class _SubjectSelector extends StatelessWidget {
 }
 
 final class _CourseList extends StatelessWidget {
-  const _CourseList({required this.data});
+  const _CourseList({required this.data, this.onItemTap});
 
   final CourseTabData data;
+  final Future<void> Function(CourseMedia media)? onItemTap;
 
   @override
   Widget build(BuildContext context) {
@@ -273,68 +288,80 @@ final class _CourseList extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(15, 4, 15, 24),
       itemCount: data.items.length,
       separatorBuilder: (context, index) => const Divider(height: 25),
-      itemBuilder: (context, index) => _CourseRow(item: data.items[index]),
+      itemBuilder: (context, index) => _CourseRow(
+        item: data.items[index],
+        onTap: onItemTap == null ? null : () => onItemTap!(data.items[index]),
+      ),
     );
   }
 }
 
 final class _CourseRow extends StatelessWidget {
-  const _CourseRow({required this.item});
+  const _CourseRow({required this.item, this.onTap});
 
   final CourseMedia item;
+  final Future<void> Function()? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 82,
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: SizedBox(
-              width: 136,
-              height: 78,
-              child: item.coverUrl.isEmpty
-                  ? const _CourseCoverFallback()
-                  : Image.network(
-                      item.coverUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const _CourseCoverFallback(),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: ValueKey('course-media-${item.id}'),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(
+          height: 82,
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: SizedBox(
+                  width: 136,
+                  height: 78,
+                  child: item.coverUrl.isEmpty
+                      ? const _CourseCoverFallback()
+                      : Image.network(
+                          item.coverUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const _CourseCoverFallback(),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      item.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF1F2937),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  item.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF1F2937),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
+                    const SizedBox(height: 8),
+                    Text(
+                      item.subject,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF9CA3AF),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  item.subject,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF9CA3AF),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: Color(0xFFCBD5E1)),
+            ],
           ),
-          const Icon(Icons.chevron_right_rounded, color: Color(0xFFCBD5E1)),
-        ],
+        ),
       ),
     );
   }

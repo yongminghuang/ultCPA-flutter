@@ -79,6 +79,21 @@ final class _PracticePageState extends State<PracticePage> {
   bool _openingPayment = false;
   bool _loadingSkillExplanation = false;
   final Map<String, List<SkillMnemonic>> _questionSkills = {};
+  final Map<String, Future<List<SkillMnemonic>>> _questionSkillRequests = {};
+  final Map<String, int> _questionSkillRequestGenerations = {};
+  final Set<String> _loadingQuestionSkillIds = {};
+  final Set<String> _questionSkillErrorIds = {};
+  int _questionSkillGeneration = 0;
+
+  void _resetQuestionSkillState() {
+    _questionSkillGeneration += 1;
+    _questionSkills.clear();
+    _questionSkillRequests.clear();
+    _questionSkillRequestGenerations.clear();
+    _loadingQuestionSkillIds.clear();
+    _questionSkillErrorIds.clear();
+    _loadingSkillExplanation = false;
+  }
 
   @override
   void initState() {
@@ -132,7 +147,7 @@ final class _PracticePageState extends State<PracticePage> {
         _catalog = catalog;
         _session = session;
         _activeRequest = targetRequest;
-        _questionSkills.clear();
+        _resetQuestionSkillState();
         _error = null;
         _loading = false;
       });
@@ -377,6 +392,7 @@ final class _PracticePageState extends State<PracticePage> {
         foregroundColor: palette.primaryText,
         elevation: 0,
         surfaceTintColor: palette.background,
+        leading: _PracticeBackButton(color: palette.primaryText),
         title: Text(
           _pageTitle(catalog),
           maxLines: 1,
@@ -484,8 +500,11 @@ final class _PracticePageState extends State<PracticePage> {
         onConfirmMultiple: _confirmMultiple,
         onToggleCollection: () => _toggleCollection(question),
         onRemoveWrong: () => _removeWrongQuestion(question),
-        onCorrection: () => _showCorrection(question),
         onListenSkill: null,
+        skills: _questionSkills[question.id] ?? const [],
+        skillsLoading: _loadingQuestionSkillIds.contains(question.id),
+        skillsFailed: _questionSkillErrorIds.contains(question.id),
+        onRetrySkills: () => unawaited(_loadInlineQuestionSkills(question)),
       ),
     };
   }
@@ -516,10 +535,64 @@ final class _PracticePageState extends State<PracticePage> {
     return List.unmodifiable(adjacent);
   }
 
+  Future<List<SkillMnemonic>> _fetchQuestionSkills(PracticeQuestion question) {
+    final cached = _questionSkills[question.id];
+    if (cached != null) return Future.value(cached);
+    final existing = _questionSkillRequests[question.id];
+    if (existing != null) return existing;
+    final generation = _questionSkillGeneration;
+    final request = Future<List<SkillMnemonic>>.microtask(() async {
+      try {
+        final source = widget.dataSource;
+        final skills = source is PracticeSkillExplanationDataSource
+            ? await (source as PracticeSkillExplanationDataSource)
+                  .loadSkillsForQuestion(question.id)
+            : const <SkillMnemonic>[];
+        final immutable = List<SkillMnemonic>.unmodifiable(skills);
+        if (generation == _questionSkillGeneration) {
+          _questionSkills[question.id] = immutable;
+        }
+        return immutable;
+      } finally {
+        if (_questionSkillRequestGenerations[question.id] == generation) {
+          _questionSkillRequests.remove(question.id);
+          _questionSkillRequestGenerations.remove(question.id);
+        }
+      }
+    });
+    _questionSkillRequests[question.id] = request;
+    _questionSkillRequestGenerations[question.id] = generation;
+    return request;
+  }
+
+  Future<void> _loadInlineQuestionSkills(PracticeQuestion question) async {
+    if (_questionSkills.containsKey(question.id) ||
+        !_loadingQuestionSkillIds.add(question.id)) {
+      return;
+    }
+    final generation = _questionSkillGeneration;
+    _questionSkillErrorIds.remove(question.id);
+    if (mounted) setState(() {});
+    try {
+      await _fetchQuestionSkills(question);
+    } catch (_) {
+      if (generation == _questionSkillGeneration) {
+        _questionSkillErrorIds.add(question.id);
+      }
+    } finally {
+      if (generation == _questionSkillGeneration) {
+        _loadingQuestionSkillIds.remove(question.id);
+        if (mounted) setState(() {});
+      }
+    }
+  }
+
   Future<void> _openRelatedSkill() async {
     if (_loadingSkillExplanation) return;
     final session = _session!;
     final current = session.currentItem;
+    final generation = _questionSkillGeneration;
+    final currentStableId = current?.stableId;
     List<SkillMnemonic> skills;
     if (current is PracticeSkillItem) {
       skills = [current.skill];
@@ -530,23 +603,25 @@ final class _PracticePageState extends State<PracticePage> {
       } else {
         setState(() => _loadingSkillExplanation = true);
         try {
-          final source = widget.dataSource;
-          skills = source is PracticeSkillExplanationDataSource
-              ? await (source as PracticeSkillExplanationDataSource)
-                    .loadSkillsForQuestion(question.id)
-              : const [];
-          if (skills.isEmpty) skills = _fallbackRelatedSkills();
-          _questionSkills[question.id] = List.unmodifiable(skills);
+          skills = await _fetchQuestionSkills(question);
         } catch (_) {
-          skills = _fallbackRelatedSkills();
+          skills = const [];
         } finally {
-          if (mounted) setState(() => _loadingSkillExplanation = false);
+          if (mounted && generation == _questionSkillGeneration) {
+            setState(() => _loadingSkillExplanation = false);
+          }
         }
       }
+      if (skills.isEmpty) skills = _fallbackRelatedSkills();
     } else {
       skills = const [];
     }
-    if (!mounted) return;
+    if (!mounted ||
+        generation != _questionSkillGeneration ||
+        !identical(_session, session) ||
+        _session?.currentItem?.stableId != currentStableId) {
+      return;
+    }
     if (skills.isEmpty) {
       _showMessage('该题暂无技巧');
       return;
@@ -558,7 +633,13 @@ final class _PracticePageState extends State<PracticePage> {
         session.newlySubmittedCount >= freeCount;
     if (requiresPayment) {
       final paid = await _openPayment(VipPaymentSource.skillExplain);
-      if (!paid || !mounted) return;
+      if (!paid ||
+          !mounted ||
+          generation != _questionSkillGeneration ||
+          !identical(_session, session) ||
+          _session?.currentItem?.stableId != currentStableId) {
+        return;
+      }
     }
     _autoNextTimer?.cancel();
     final palette = _PracticePalette.from(_settings.themeMode);
@@ -644,6 +725,7 @@ final class _PracticePageState extends State<PracticePage> {
         setState(() {});
       case PracticeSubmitted(:final question, :final answer):
         setState(() {});
+        unawaited(_loadInlineQuestionSkills(question));
         if (answer.isRight && _settings.playCorrectSound) {
           unawaited(SystemSound.play(SystemSoundType.click));
         }
@@ -881,30 +963,62 @@ final class _PracticePageState extends State<PracticePage> {
             unawaited(_saveSettings(next));
           }
 
-          return FractionallySizedBox(
+          void updateThreshold(int value) {
+            if (value == selectedThreshold) return;
+            setSheetState(() => selectedThreshold = value);
+            unawaited(_saveWrongRemovalThreshold(value));
+          }
+
+          return SafeArea(
             key: ValueKey(
               isErrorReview
                   ? 'practice-wrong-settings-sheet'
                   : 'practice-settings-sheet',
             ),
-            heightFactor: isErrorReview ? 0.92 : 0.72,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: palette.surface,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
+            top: false,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.92,
               ),
-              child: SafeArea(
-                top: false,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: palette.surface,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                ),
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(bottom: 24),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        width: double.infinity,
-                        height: 4,
-                        color: _PracticePalette.blue,
+                      SizedBox(
+                        height: 56,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 16, right: 7),
+                          child: Row(
+                            children: [
+                              Text(
+                                '设置',
+                                style: TextStyle(
+                                  color: palette.primaryText,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const Spacer(),
+                              IconButton(
+                                key: const ValueKey('practice-settings-close'),
+                                onPressed: () =>
+                                    Navigator.of(sheetContext).pop(),
+                                icon: Icon(
+                                  Icons.close_rounded,
+                                  size: 20,
+                                  color: palette.primaryText,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                       _PracticeSwitchRow(
                         label: '答对自动跳转下一题',
@@ -928,11 +1042,8 @@ final class _PracticePageState extends State<PracticePage> {
                           draft.copyWith(explainWrongAutomatically: value),
                         ),
                       ),
-                      _PracticeChoiceRow<PracticeFontSize>(
-                        label: '字体大小',
-                        values: PracticeFontSize.values,
+                      _PracticeFontSizeSlider(
                         selected: draft.fontSize,
-                        labels: const ['小号', '正常', '大号', '特大'],
                         palette: palette,
                         onSelected: (value) =>
                             update(draft.copyWith(fontSize: value)),
@@ -943,72 +1054,13 @@ final class _PracticePageState extends State<PracticePage> {
                         onSelected: (value) =>
                             update(draft.copyWith(themeMode: value)),
                       ),
-                      if (isErrorReview) ...[
-                        Divider(color: palette.divider),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 2),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              '设置自动移除错题',
-                              style: TextStyle(
-                                color: palette.primaryText,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
+                      if (isErrorReview)
+                        _PracticeWrongRemovalSettings(
+                          selected: selectedThreshold,
+                          palette: palette,
+                          onSelected: updateThreshold,
                         ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              '请选择做对几次，自动移除错题',
-                              style: TextStyle(
-                                color: palette.secondaryText,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 6,
-                            children: [
-                              for (final value in const [
-                                1,
-                                2,
-                                3,
-                                4,
-                                5,
-                                6,
-                                7,
-                                -1,
-                              ])
-                                ChoiceChip(
-                                  key: ValueKey(
-                                    'practice-wrong-threshold-$value',
-                                  ),
-                                  label: Text(
-                                    _wrongRemovalThresholdLabel(value),
-                                  ),
-                                  selected: selectedThreshold == value,
-                                  onSelected: (_) {
-                                    if (value == selectedThreshold) return;
-                                    setSheetState(
-                                      () => selectedThreshold = value,
-                                    );
-                                    unawaited(
-                                      _saveWrongRemovalThreshold(value),
-                                    );
-                                  },
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
+                      const SizedBox(height: 8),
                     ],
                   ),
                 ),
@@ -1196,6 +1248,7 @@ final class _PracticePageState extends State<PracticePage> {
         _catalog = catalog;
         _session = session;
         _activeRequest = request;
+        _resetQuestionSkillState();
         _error = null;
         _loading = false;
       });
@@ -1246,138 +1299,6 @@ final class _PracticePageState extends State<PracticePage> {
     setState(() {});
     _showMessage('做题记录已清空');
     return true;
-  }
-
-  Future<void> _showCorrection(PracticeQuestion question) async {
-    final source = widget.dataSource;
-    if (source is! PracticeMaintenanceDataSource) {
-      _showMessage('反馈功能暂不可用');
-      return;
-    }
-    final maintenanceSource = source as PracticeMaintenanceDataSource;
-    final controller = TextEditingController();
-    var selectedType = 0;
-    var submitting = false;
-    final palette = _PracticePalette.from(_settings.themeMode);
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: palette.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          Future<void> submit() async {
-            if (selectedType == 0 || controller.text.trim().isEmpty) {
-              _showMessage('您有必填项未填写');
-              return;
-            }
-            setSheetState(() => submitting = true);
-            try {
-              await maintenanceSource.submitCorrection(
-                question: question,
-                serialNumber: _session!.currentIndex + 1,
-                type: selectedType,
-                content: controller.text,
-              );
-              if (!sheetContext.mounted) return;
-              Navigator.of(sheetContext).pop();
-              _showMessage('提交完成,感谢您的反馈');
-            } catch (_) {
-              if (sheetContext.mounted) {
-                setSheetState(() => submitting = false);
-                _showMessage('提交失败，请稍后重试');
-              }
-            }
-          }
-
-          const types = <(int, String)>[
-            (1, '题干有误'),
-            (2, '答案有误'),
-            (3, '技巧不好用'),
-            (4, '图片不清晰'),
-            (99, '其他'),
-          ];
-          return SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              16,
-              18,
-              16,
-              20 + MediaQuery.viewInsetsOf(context).bottom,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _AndroidSectionTitle(
-                  text: '题目纠错',
-                  palette: palette,
-                  trailing: IconButton(
-                    onPressed: submitting
-                        ? null
-                        : () => Navigator.of(sheetContext).pop(),
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
-                  children: [
-                    for (final (value, label) in types)
-                      ChoiceChip(
-                        label: Text(label),
-                        selected: selectedType == value,
-                        onSelected: submitting
-                            ? null
-                            : (_) => setSheetState(() => selectedType = value),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: controller,
-                  enabled: !submitting,
-                  minLines: 3,
-                  maxLines: 5,
-                  maxLength: 200,
-                  decoration: const InputDecoration(
-                    hintText: '请描述题目存在的问题',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: submitting ? null : submit,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _PracticePalette.blue,
-                    ),
-                    child: submitting
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('提交'),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-    unawaited(
-      Future<void>.delayed(
-        const Duration(milliseconds: 400),
-        controller.dispose,
-      ),
-    );
   }
 
   Future<void> _showAnswerCard() async {
@@ -1499,6 +1420,22 @@ final class _PracticeSettingsAction extends StatelessWidget {
   }
 }
 
+final class _PracticeBackButton extends StatelessWidget {
+  const _PracticeBackButton({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      key: const ValueKey('practice-back'),
+      onPressed: () => Navigator.of(context).maybePop(),
+      splashRadius: 24,
+      icon: Icon(Icons.arrow_back_ios_new_rounded, size: 17, color: color),
+    );
+  }
+}
+
 final class _PracticeSwitchRow extends StatelessWidget {
   const _PracticeSwitchRow({
     required this.label,
@@ -1514,82 +1451,301 @@ final class _PracticeSwitchRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 62,
-      child: SwitchListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-        title: Text(
-          label,
-          style: TextStyle(color: palette.primaryText, fontSize: 14),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => onChanged(!value),
+        child: SizedBox(
+          height: 60,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(color: palette.primaryText, fontSize: 14),
+                ),
+                const Spacer(),
+                _PracticeToggle(value: value),
+              ],
+            ),
+          ),
         ),
-        value: value,
-        activeTrackColor: _PracticePalette.blue,
-        onChanged: onChanged,
       ),
     );
   }
 }
 
-final class _PracticeChoiceRow<T> extends StatelessWidget {
-  const _PracticeChoiceRow({
-    required this.label,
-    required this.values,
+final class _PracticeToggle extends StatelessWidget {
+  const _PracticeToggle({required this.value});
+
+  final bool value;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      width: 39,
+      height: 24,
+      padding: const EdgeInsets.all(1),
+      decoration: BoxDecoration(
+        color: value ? _PracticePalette.green : const Color(0xFFECEFF4),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: AnimatedAlign(
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeInOut,
+        alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          width: 22,
+          height: 22,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x33000000),
+                blurRadius: 3,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+final class _PracticeFontSizeSlider extends StatelessWidget {
+  const _PracticeFontSizeSlider({
     required this.selected,
-    required this.labels,
     required this.palette,
     required this.onSelected,
   });
 
-  final String label;
-  final List<T> values;
-  final T selected;
-  final List<String> labels;
+  final PracticeFontSize selected;
   final _PracticePalette palette;
-  final ValueChanged<T> onSelected;
+  final ValueChanged<PracticeFontSize> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 76,
-            child: Text(
-              label,
-              style: TextStyle(color: palette.primaryText, fontSize: 14),
-            ),
-          ),
-          for (var index = 0; index < values.length; index += 1)
-            Expanded(
-              child: InkWell(
-                onTap: () => onSelected(values[index]),
-                borderRadius: BorderRadius.circular(6),
-                child: Container(
-                  height: 42,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: selected == values[index]
-                        ? _PracticePalette.blue.withValues(alpha: 0.12)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    labels[index],
-                    style: TextStyle(
-                      color: selected == values[index]
-                          ? _PracticePalette.blue
-                          : palette.secondaryText,
-                      fontSize: 12 + index * 2,
-                      fontWeight: selected == values[index]
-                          ? FontWeight.w700
-                          : FontWeight.w400,
-                    ),
-                  ),
-                ),
+    return SizedBox(
+      key: const ValueKey('practice-font-size-slider'),
+      height: 70,
+      width: double.infinity,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          void select(double x) {
+            const side = 35.0;
+            final available = (constraints.maxWidth - side * 2).clamp(
+              1.0,
+              double.infinity,
+            );
+            final grade = ((x - side) / available * 3).round().clamp(0, 3);
+            if (grade == selected.index) return;
+            onSelected(PracticeFontSize.values[grade]);
+          }
+
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (details) => select(details.localPosition.dx),
+            onHorizontalDragUpdate: (details) =>
+                select(details.localPosition.dx),
+            child: CustomPaint(
+              painter: _PracticeFontSizePainter(
+                selectedIndex: selected.index,
+                textColor: palette.primaryText,
               ),
             ),
-        ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+final class _PracticeFontSizePainter extends CustomPainter {
+  const _PracticeFontSizePainter({
+    required this.selectedIndex,
+    required this.textColor,
+  });
+
+  final int selectedIndex;
+  final Color textColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const side = 35.0;
+    final start = side;
+    final end = size.width - side;
+    final y = size.height * 0.6;
+    final step = (end - start) / 3;
+    final linePaint = Paint()
+      ..color = const Color(0xFF979797)
+      ..strokeWidth = 2;
+    canvas.drawLine(Offset(start, y), Offset(end, y), linePaint);
+    for (var index = 0; index < 4; index += 1) {
+      final x = start + step * index;
+      canvas.drawLine(Offset(x, y - 5), Offset(x, y + 5), linePaint);
+    }
+
+    void drawLabel(String text, double fontSize, double centerX) {
+      final painter = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(color: textColor, fontSize: fontSize),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      painter.paint(
+        canvas,
+        Offset(centerX - painter.width / 2, y - 20 - painter.height),
+      );
+    }
+
+    drawLabel('A', 15, start);
+    drawLabel('标准', 18, start + step);
+    drawLabel('A', 25, end);
+
+    final center = Offset(start + step * selectedIndex, y);
+    final path = Path()..addOval(Rect.fromCircle(center: center, radius: 12));
+    canvas.drawShadow(path, const Color(0x66000000), 6, true);
+    canvas.drawCircle(center, 12, Paint()..color = Colors.white);
+  }
+
+  @override
+  bool shouldRepaint(_PracticeFontSizePainter oldDelegate) {
+    return selectedIndex != oldDelegate.selectedIndex ||
+        textColor != oldDelegate.textColor;
+  }
+}
+
+final class _PracticeWrongRemovalSettings extends StatelessWidget {
+  const _PracticeWrongRemovalSettings({
+    required this.selected,
+    required this.palette,
+    required this.onSelected,
+  });
+
+  final int selected;
+  final _PracticePalette palette;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget option(int value) => _PracticeRadioOption(
+      value: value,
+      selected: selected == value,
+      label: _wrongRemovalThresholdLabel(value),
+      palette: palette,
+      onTap: () => onSelected(value),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          height: 1,
+          margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          color: palette.divider,
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 2),
+          child: Text(
+            '设置自动移除错题',
+            style: TextStyle(color: palette.primaryText, fontSize: 14),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            '请选择做对几次，自动移除错题',
+            style: TextStyle(color: palette.secondaryText, fontSize: 12),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(48, 8, 16, 0),
+          child: Column(
+            children: [
+              option(1),
+              Row(
+                children: [
+                  Expanded(child: option(2)),
+                  Expanded(child: option(3)),
+                  Expanded(child: option(4)),
+                ],
+              ),
+              Row(
+                children: [
+                  Expanded(child: option(5)),
+                  Expanded(child: option(6)),
+                  Expanded(child: option(7)),
+                ],
+              ),
+              option(-1),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+final class _PracticeRadioOption extends StatelessWidget {
+  const _PracticeRadioOption({
+    required this.value,
+    required this.selected,
+    required this.label,
+    required this.palette,
+    required this.onTap,
+  });
+
+  final int value;
+  final bool selected;
+  final String label;
+  final _PracticePalette palette;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      key: ValueKey('practice-wrong-threshold-$value'),
+      onTap: onTap,
+      child: SizedBox(
+        height: 40,
+        child: Row(
+          children: [
+            Container(
+              width: 18,
+              height: 18,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected
+                      ? _PracticePalette.blue
+                      : palette.secondaryText,
+                ),
+              ),
+              child: selected
+                  ? const DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: _PracticePalette.blue,
+                        shape: BoxShape.circle,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 7),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                style: TextStyle(color: palette.secondaryText, fontSize: 14),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1609,67 +1765,75 @@ final class _PracticeThemeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const choices = <(PracticeThemeMode, String, Color)>[
-      (PracticeThemeMode.standard, '标准', Color(0xFFF7F8F9)),
-      (PracticeThemeMode.eyeCare, '护眼', Color(0xFFF9F6ED)),
-      (PracticeThemeMode.night, '夜间', Color(0xFF434343)),
+      (PracticeThemeMode.standard, '标准', Colors.white),
+      (PracticeThemeMode.eyeCare, '护眼', Color(0xFFF8D289)),
+      (PracticeThemeMode.night, '夜间', Color(0xFF242424)),
     ];
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 76,
-            child: Text(
-              '主题选择',
-              style: TextStyle(color: palette.primaryText, fontSize: 14),
+    return SizedBox(
+      height: 60,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 16, right: 8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 68,
+              child: Text(
+                '主题选择',
+                style: TextStyle(color: palette.primaryText, fontSize: 14),
+              ),
             ),
-          ),
-          for (final (value, label, color) in choices)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: InkWell(
-                  onTap: () => onSelected(value),
-                  borderRadius: BorderRadius.circular(4),
-                  child: Container(
-                    height: 38,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: selected == value
-                            ? _PracticePalette.blue
-                            : const Color(0xFFD8DEE4),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+            for (final (value, label, color) in choices)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: InkWell(
+                    onTap: () => onSelected(value),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Stack(
+                      clipBehavior: Clip.none,
                       children: [
-                        Text(
-                          label,
-                          style: TextStyle(
-                            color: value == PracticeThemeMode.night
-                                ? Colors.white70
-                                : const Color(0xFF666666),
-                            fontSize: 14,
+                        Align(
+                          alignment: Alignment.center,
+                          child: Container(
+                            height: 36,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: color,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: const Color(0xFFECEFF4),
+                              ),
+                            ),
+                            child: Text(
+                              label,
+                              style: TextStyle(
+                                color: value == PracticeThemeMode.night
+                                    ? Colors.white
+                                    : value == PracticeThemeMode.eyeCare
+                                    ? const Color(0xFF8E5C11)
+                                    : const Color(0xFF666666),
+                                fontSize: 15,
+                              ),
+                            ),
                           ),
                         ),
-                        if (selected == value) ...[
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.check_circle,
-                            size: 16,
-                            color: _PracticePalette.blue,
+                        if (selected == value)
+                          const Positioned(
+                            top: 2,
+                            right: -1,
+                            child: Icon(
+                              Icons.check_circle,
+                              size: 24,
+                              color: _PracticePalette.blue,
+                            ),
                           ),
-                        ],
                       ],
                     ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1695,6 +1859,7 @@ final class _PracticeShell extends StatelessWidget {
         foregroundColor: palette.primaryText,
         elevation: 0,
         surfaceTintColor: palette.background,
+        leading: _PracticeBackButton(color: palette.primaryText),
         title: Text(title),
         centerTitle: true,
       ),
@@ -1966,12 +2131,14 @@ final class _PracticeExplanationSkillRow extends StatelessWidget {
     required this.index,
     required this.palette,
     required this.textScale,
+    this.autoplayFirstVoice = true,
   });
 
   final SkillMnemonic skill;
   final int index;
   final _PracticePalette palette;
   final double textScale;
+  final bool autoplayFirstVoice;
 
   @override
   Widget build(BuildContext context) {
@@ -2019,7 +2186,7 @@ final class _PracticeExplanationSkillRow extends StatelessWidget {
                     : ValueKey('practice-explanation-voice-$index'),
                 rawUrl: skill.voiceUrl,
                 kind: PracticeMediaKind.audio,
-                autoplay: index == 0,
+                autoplay: autoplayFirstVoice && index == 0,
               ),
             ),
           if (skill.note.trim().isNotEmpty)
@@ -2052,6 +2219,84 @@ final class _PracticeExplanationSkillRow extends StatelessWidget {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+final class _PracticeInlineSkills extends StatelessWidget {
+  const _PracticeInlineSkills({
+    required this.skills,
+    required this.loading,
+    required this.failed,
+    required this.palette,
+    required this.textScale,
+    required this.onRetry,
+  });
+
+  final List<SkillMnemonic> skills;
+  final bool loading;
+  final bool failed;
+  final _PracticePalette palette;
+  final double textScale;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (skills.isNotEmpty) {
+      return Column(
+        key: const ValueKey('practice-inline-skills'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(height: 8, color: palette.divider),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(15, 15, 16, 0),
+            child: _AndroidSectionTitle(text: '速记技巧', palette: palette),
+          ),
+          const SizedBox(height: 8),
+          for (var index = 0; index < skills.length; index += 1)
+            _PracticeExplanationSkillRow(
+              skill: skills[index],
+              index: index,
+              palette: palette,
+              textScale: textScale,
+              autoplayFirstVoice: false,
+            ),
+        ],
+      );
+    }
+    if (loading) {
+      return Padding(
+        key: const ValueKey('practice-inline-skills-loading'),
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '正在加载技巧...',
+              style: TextStyle(color: palette.secondaryText, fontSize: 14),
+            ),
+          ],
+        ),
+      );
+    }
+    return Padding(
+      key: const ValueKey('practice-inline-skills-error'),
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Column(
+        children: [
+          Text(
+            '加载失败',
+            style: TextStyle(color: palette.secondaryText, fontSize: 16),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton(onPressed: onRetry, child: const Text('重新加载')),
         ],
       ),
     );
@@ -2105,8 +2350,11 @@ final class _PracticeQuestionView extends StatelessWidget {
     required this.onConfirmMultiple,
     required this.onToggleCollection,
     required this.onRemoveWrong,
-    required this.onCorrection,
     required this.onListenSkill,
+    required this.skills,
+    required this.skillsLoading,
+    required this.skillsFailed,
+    required this.onRetrySkills,
   });
 
   final PracticeQuestion question;
@@ -2121,8 +2369,11 @@ final class _PracticeQuestionView extends StatelessWidget {
   final VoidCallback onConfirmMultiple;
   final VoidCallback onToggleCollection;
   final VoidCallback onRemoveWrong;
-  final VoidCallback onCorrection;
   final VoidCallback? onListenSkill;
+  final List<SkillMnemonic> skills;
+  final bool skillsLoading;
+  final bool skillsFailed;
+  final VoidCallback onRetrySkills;
 
   @override
   Widget build(BuildContext context) {
@@ -2133,36 +2384,55 @@ final class _PracticeQuestionView extends StatelessWidget {
         Container(height: 8, color: palette.divider),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-          child: Text(
-            question.displayTitle,
+          child: Text.rich(
+            key: const ValueKey('practice-question-stem'),
+            TextSpan(
+              children: [
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: Container(
+                    key: const ValueKey('practice-question-type'),
+                    margin: const EdgeInsets.only(right: 4),
+                    padding: const EdgeInsets.fromLTRB(6, 1, 8, 1),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFC5DEFF),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      _questionTypeLabel(question),
+                      style: TextStyle(
+                        color: _PracticePalette.blue,
+                        fontSize: 12 * textScale,
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
+                TextSpan(text: question.displayTitle),
+              ],
+            ),
             style: TextStyle(
               color: palette.primaryText,
               fontSize: 16 * textScale,
-              height: 1.45,
+              height: 1.2,
               fontWeight: FontWeight.w400,
             ),
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 6, 12),
+          padding: const EdgeInsets.fromLTRB(16, 8, 6, 16),
           child: Row(
             children: [
-              _PracticeActionChip(
-                label: _questionTypeLabel(question),
-                foreground: _PracticePalette.blue,
-                background: _PracticePalette.blue.withValues(alpha: 0.08),
-              ),
               if (question.tags.trim().isNotEmpty) ...[
-                const SizedBox(width: 8),
                 Flexible(
                   child: _PracticeActionChip(
                     label: question.tags,
                     foreground: _PracticePalette.blue,
-                    background: _PracticePalette.blue.withValues(alpha: 0.08),
+                    background: const Color(0xFFE8F3FC),
                   ),
                 ),
+                const SizedBox(width: 8),
               ],
-              const Spacer(),
               _PracticeActionChip(
                 key: const ValueKey('practice-collection-toggle'),
                 label: isCollected ? '取消收藏' : '收藏',
@@ -2171,11 +2441,11 @@ final class _PracticeQuestionView extends StatelessWidget {
                   key: ValueKey(
                     'practice-collection-${isCollected ? 'collected' : 'not-collected'}',
                   ),
-                  size: 14,
+                  size: 11,
                   color: _PracticePalette.green,
                 ),
                 foreground: _PracticePalette.green,
-                background: _PracticePalette.blue.withValues(alpha: 0.06),
+                background: const Color(0xFFE8F3FC),
                 onTap: onToggleCollection,
               ),
               if (showWrongRemoval) ...[
@@ -2194,10 +2464,11 @@ final class _PracticeQuestionView extends StatelessWidget {
                           color: _PracticePalette.orange,
                         ),
                   foreground: _PracticePalette.orange,
-                  background: _PracticePalette.blue.withValues(alpha: 0.06),
+                  background: const Color(0xFFE8F3FC),
                   onTap: removingWrong ? null : onRemoveWrong,
                 ),
               ],
+              const Spacer(),
               if (onListenSkill != null) ...[
                 const SizedBox(width: 8),
                 _PracticeActionChip(
@@ -2282,36 +2553,20 @@ final class _PracticeQuestionView extends StatelessWidget {
               ],
             ),
           ),
+          if (skillsLoading || skillsFailed || skills.isNotEmpty)
+            _PracticeInlineSkills(
+              skills: skills,
+              loading: skillsLoading,
+              failed: skillsFailed,
+              palette: palette,
+              textScale: textScale,
+              onRetry: onRetrySkills,
+            ),
           if (question.analysis.trim().isNotEmpty) ...[
             Container(height: 8, color: palette.divider),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: _AndroidSectionTitle(
-                text: '答案解析',
-                palette: palette,
-                trailing: InkWell(
-                  key: const ValueKey('practice-correction'),
-                  onTap: onCorrection,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: palette.divider,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      '反馈',
-                      style: TextStyle(
-                        color: palette.secondaryText,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              child: _AndroidSectionTitle(text: '答案解析', palette: palette),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
@@ -2356,7 +2611,7 @@ final class _PracticeActionChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(6),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -2626,48 +2881,130 @@ final class _PracticeNavigation extends StatelessWidget {
               left: 0,
               right: 0,
               child: Center(
-                child: Material(
-                  color: _PracticePalette.blue,
-                  shape: const CircleBorder(),
-                  elevation: 3,
-                  child: InkWell(
-                    key: const ValueKey('practice-skill-shortcut'),
-                    onTap: loadingSkillShortcut ? null : onSkillShortcut,
-                    customBorder: const CircleBorder(),
-                    child: SizedBox.square(
-                      dimension: 64,
-                      child: loadingSkillShortcut
-                          ? const Padding(
-                              padding: EdgeInsets.all(21),
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Image.asset(
-                                  'assets/images/practice/ic_bottom_mic2.png',
-                                  width: 27,
-                                  height: 27,
-                                  color: Colors.white,
-                                ),
-                                const Text(
-                                  '技巧讲解',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
+                child: _PracticeSkillShortcut(
+                  loading: loadingSkillShortcut,
+                  onTap: onSkillShortcut,
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+final class _PracticeSkillShortcut extends StatefulWidget {
+  const _PracticeSkillShortcut({required this.loading, required this.onTap});
+
+  final bool loading;
+  final VoidCallback onTap;
+
+  @override
+  State<_PracticeSkillShortcut> createState() => _PracticeSkillShortcutState();
+}
+
+final class _PracticeSkillShortcutState extends State<_PracticeSkillShortcut>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+  late final Animation<double> _opacity;
+  Timer? _restartTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..addStatusListener(_onAnimationStatus);
+    _scale = _pulseAnimation(1, 1.10);
+    _opacity = _pulseAnimation(1, 0.9);
+    _controller.forward();
+  }
+
+  Animation<double> _pulseAnimation(double start, double peak) {
+    return TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(
+          begin: start,
+          end: peak,
+        ).chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 1,
+      ),
+      TweenSequenceItem(
+        tween: Tween(
+          begin: peak,
+          end: start,
+        ).chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 1,
+      ),
+    ]).animate(_controller);
+  }
+
+  void _onAnimationStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed) return;
+    _restartTimer?.cancel();
+    _restartTimer = Timer(const Duration(milliseconds: 180), () {
+      if (!mounted) return;
+      _controller
+        ..reset()
+        ..forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _restartTimer?.cancel();
+    _controller
+      ..removeStatusListener(_onAnimationStatus)
+      ..dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) => Transform.scale(
+        key: const ValueKey('practice-skill-pulse'),
+        scale: _scale.value,
+        child: Opacity(opacity: _opacity.value, child: child),
+      ),
+      child: Material(
+        color: const Color(0xFF0864E9),
+        shape: const CircleBorder(),
+        elevation: 3,
+        child: InkWell(
+          key: const ValueKey('practice-skill-shortcut'),
+          onTap: widget.loading ? null : widget.onTap,
+          customBorder: const CircleBorder(),
+          child: SizedBox.square(
+            dimension: 64,
+            child: widget.loading
+                ? const Padding(
+                    padding: EdgeInsets.all(21),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/images/practice/ic_bottom_mic2.png',
+                        width: 27,
+                        height: 27,
+                        color: Colors.white,
+                      ),
+                      const Text(
+                        '技巧讲解',
+                        style: TextStyle(color: Colors.white, fontSize: 11),
+                      ),
+                    ],
+                  ),
+          ),
         ),
       ),
     );
@@ -2873,9 +3210,7 @@ final class _PracticeAnswerSheet extends StatelessWidget {
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 6,
-                          mainAxisSpacing: 10,
-                          crossAxisSpacing: 10,
-                          childAspectRatio: 1,
+                          mainAxisExtent: 60,
                         ),
                     itemCount: items.length,
                     itemBuilder: (context, index) {
@@ -2890,23 +3225,33 @@ final class _PracticeAnswerSheet extends StatelessWidget {
                           : answer.isRight
                           ? _PracticePalette.green
                           : _PracticePalette.red;
-                      return Material(
-                        color: cellColor,
-                        shape: CircleBorder(
-                          side: BorderSide(
-                            width: index == session.currentIndex ? 2 : 1,
-                            color: index == session.currentIndex
-                                ? _PracticePalette.blue
-                                : Colors.transparent,
-                          ),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: InkWell(
-                          key: ValueKey('practice-answer-cell-$index'),
-                          onTap: () => onSelect(index),
-                          customBorder: const CircleBorder(),
-                          child: Center(
-                            child: _answerStatus(item, session, index, palette),
+                      return Center(
+                        child: SizedBox.square(
+                          dimension: 44,
+                          child: Material(
+                            color: cellColor,
+                            shape: CircleBorder(
+                              side: BorderSide(
+                                width: index == session.currentIndex ? 2 : 1,
+                                color: index == session.currentIndex
+                                    ? _PracticePalette.blue
+                                    : Colors.transparent,
+                              ),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              key: ValueKey('practice-answer-cell-$index'),
+                              onTap: () => onSelect(index),
+                              customBorder: const CircleBorder(),
+                              child: Center(
+                                child: _answerStatus(
+                                  item,
+                                  session,
+                                  index,
+                                  palette,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       );
@@ -2973,7 +3318,7 @@ Widget _answerStatus(
       style: const TextStyle(
         color: Colors.white,
         fontSize: 14,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w400,
       ),
     );
   }
@@ -2986,7 +3331,8 @@ Widget _answerStatus(
       color: session.canVisit(index)
           ? palette.primaryText
           : palette.secondaryText.withValues(alpha: 0.45),
-      fontWeight: FontWeight.w600,
+      fontSize: 14,
+      fontWeight: FontWeight.w400,
     ),
   );
 }
@@ -3002,7 +3348,7 @@ String _questionTypeLabel(PracticeQuestion question) {
 
 String _wrongRemovalThresholdLabel(int value) {
   return switch (value) {
-    1 => '做对即删除',
+    1 => '做对即自动移除',
     -1 => '仅限手动移除',
     _ => '$value次',
   };

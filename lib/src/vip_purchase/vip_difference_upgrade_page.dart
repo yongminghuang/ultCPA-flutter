@@ -100,7 +100,10 @@ final class _VipDifferenceUpgradePageState
   Future<void> _openNormalPurchase() async {
     if (_redirecting) return;
     _redirecting = true;
-    final result = await widget.normalPurchaseLauncher(context, widget.request);
+    final result = await widget.normalPurchaseLauncher(
+      context,
+      widget.request.withoutDifferenceUpgrade(),
+    );
     if (mounted) Navigator.of(context).pop(result);
   }
 

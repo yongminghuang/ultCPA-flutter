@@ -181,6 +181,7 @@ final class _LearningMaterialsFeedPageState
                     videoContentBuilder: widget.videoContentBuilder,
                     onOpenDetail: _openDetail,
                     onPayment: widget.onPayment,
+                    onBannerTap: widget.onBannerTap,
                   ),
               ],
             ),
@@ -199,6 +200,7 @@ final class _LearningMaterialsFeedShelfPane extends StatefulWidget {
     required this.onOpenDetail,
     required this.videoContentBuilder,
     required this.onPayment,
+    required this.onBannerTap,
     super.key,
   });
 
@@ -211,6 +213,7 @@ final class _LearningMaterialsFeedShelfPane extends StatefulWidget {
   final ValueChanged<LearningMaterialsItem> onOpenDetail;
   final LearningMaterialsVideoContentBuilder? videoContentBuilder;
   final LearningMaterialsPaymentCallback? onPayment;
+  final LearningMaterialsBannerCallback? onBannerTap;
 
   @override
   State<_LearningMaterialsFeedShelfPane> createState() =>
@@ -286,6 +289,20 @@ final class _LearningMaterialsFeedShelfPaneState
     LearningMaterialsItem item,
     LearningMaterialsPaymentChannel channel,
   ) async {
+    if (!item.isShow) {
+      final jumpPage = item.payJumpPage.trim();
+      if (jumpPage.isEmpty) {
+        _message('暂无可跳转页面');
+        return;
+      }
+      final bannerCallback = widget.onBannerTap;
+      if (bannerCallback == null) {
+        _message('该功能需要更新支持');
+        return;
+      }
+      await bannerCallback(context, jumpPage);
+      return;
+    }
     final callback = widget.onPayment;
     if (callback == null) {
       _message('支付能力暂未接入');
@@ -578,35 +595,33 @@ final class _LearningFeedPayCardState extends State<_LearningFeedPayCard> {
             ),
             if (widget.item.isShow) ...[
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: RadioListTile<LearningMaterialsPaymentChannel>(
-                      key: const ValueKey('learning-material-pay-wechat'),
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('微信支付'),
-                      value: LearningMaterialsPaymentChannel.wechat,
-                      groupValue: _channel,
-                      onChanged: (value) {
-                        if (value != null) setState(() => _channel = value);
-                      },
+              RadioGroup<LearningMaterialsPaymentChannel>(
+                groupValue: _channel,
+                onChanged: (value) {
+                  if (value != null) setState(() => _channel = value);
+                },
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: RadioListTile<LearningMaterialsPaymentChannel>(
+                        key: const ValueKey('learning-material-pay-wechat'),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('微信支付'),
+                        value: LearningMaterialsPaymentChannel.wechat,
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: RadioListTile<LearningMaterialsPaymentChannel>(
-                      key: const ValueKey('learning-material-pay-alipay'),
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('支付宝'),
-                      value: LearningMaterialsPaymentChannel.alipay,
-                      groupValue: _channel,
-                      onChanged: (value) {
-                        if (value != null) setState(() => _channel = value);
-                      },
+                    Expanded(
+                      child: RadioListTile<LearningMaterialsPaymentChannel>(
+                        key: const ValueKey('learning-material-pay-alipay'),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('支付宝'),
+                        value: LearningMaterialsPaymentChannel.alipay,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
             SizedBox(

@@ -19,16 +19,20 @@ final class LegacyWebRequest {
 
 typedef LegacyWebContentBuilder =
     Widget Function(BuildContext context, Uri uri);
+typedef LegacyInviteShareCallback =
+    Future<void> Function(BuildContext context, String content);
 
 final class LegacyWebViewPage extends StatefulWidget {
   const LegacyWebViewPage({
     required this.request,
     this.contentBuilder,
+    this.onInviteShare,
     super.key,
   });
 
   final LegacyWebRequest request;
   final LegacyWebContentBuilder? contentBuilder;
+  final LegacyInviteShareCallback? onInviteShare;
 
   @override
   State<LegacyWebViewPage> createState() => _LegacyWebViewPageState();
@@ -45,17 +49,39 @@ final class _LegacyWebViewPageState extends State<LegacyWebViewPage> {
     super.initState();
     if (widget.contentBuilder == null) {
       _progress = 0;
-      _controller = WebViewController()
+      final controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setBackgroundColor(Colors.white)
+        ..setBackgroundColor(Colors.white);
+      if (widget.onInviteShare != null) {
+        controller.addJavaScriptChannel(
+          'Jx885InviteShare',
+          onMessageReceived: (message) {
+            final callback = widget.onInviteShare;
+            if (callback != null && mounted) {
+              unawaited(callback(context, message.message));
+            }
+          },
+        );
+      }
+      controller
         ..setNavigationDelegate(
           NavigationDelegate(
             onProgress: (progress) {
               if (mounted) setState(() => _progress = progress);
             },
+            onPageFinished: (_) async {
+              if (widget.onInviteShare == null) return;
+              await controller.runJavaScript('''
+                window.Jx885WebApi = window.Jx885WebApi || {};
+                window.Jx885WebApi.openInviteShare = function(content) {
+                  Jx885InviteShare.postMessage(String(content || ''));
+                };
+              ''');
+            },
           ),
         )
         ..loadRequest(widget.request.uri);
+      _controller = controller;
     }
   }
 

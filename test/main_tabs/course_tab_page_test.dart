@@ -68,6 +68,31 @@ void main() {
     await tester.pumpAndSettle();
     expect(dataSource.requestedTypes, hasLength(3));
   });
+
+  testWidgets('opens the tapped teacher course in the media launcher', (
+    tester,
+  ) async {
+    CourseMedia? launchedMedia;
+    CourseTabData? launchedData;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CourseTabPage(
+          dataSource: _DataSource(),
+          mediaLauncher: (context, media, data) async {
+            launchedMedia = media;
+            launchedData = data;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('course-media-1')));
+    await tester.pump();
+
+    expect(launchedMedia?.title, '技巧精讲课程');
+    expect(launchedData?.courseType, CourseType.intensive);
+  });
 }
 
 final class _DataSource implements MainTabsDataSource {

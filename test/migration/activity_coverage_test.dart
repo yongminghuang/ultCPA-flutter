@@ -136,8 +136,11 @@ void main() {
     expect(mineWeb.evidence, contains('generic payment pending'));
     expect(mineWeb.evidence, contains('file chooser pending'));
     expect(mineWeb.evidence, contains('media pending'));
-    expect(mineWeb.evidence, contains('share pending'));
-    expect(mineWeb.evidence, contains('JavaScript callbacks pending'));
+    expect(mineWeb.evidence, contains('openInviteShare JavaScript callback'));
+    expect(
+      mineWeb.evidence,
+      contains('other share and JavaScript callbacks pending'),
+    );
 
     expect(
       agreementWeb,
@@ -206,27 +209,28 @@ void main() {
     );
   });
 
-  test('keeps excluded VIP payment surfaces pending', () {
+  test('records difference upgrade while keeping DaZhao payment pending', () {
     final purchasePayment = migrationProgressFor(
       'com.jx885.lrjk.cg.ui.activity.OpenVipMultiPayActivity',
       ActivityDisposition.flutterPage,
     );
-    for (final activity in const [
+    final dazhao = migrationProgressFor(
       'com.jx885.lrjk.cg.ui.activity.OpenVipDaZhaoActivity',
+      ActivityDisposition.flutterPage,
+    );
+    expect(dazhao.status, ActivityMigrationStatus.pending);
+    expect(dazhao.flutterSurface, isEmpty);
+    final difference = migrationProgressFor(
       'com.jx885.lrjk.cg.ui.activity.VipDifferenceUpgradeActivity',
-    ]) {
-      final progress = migrationProgressFor(
-        activity,
-        ActivityDisposition.flutterPage,
-      );
-      expect(progress.status, ActivityMigrationStatus.pending);
-      expect(progress.flutterSurface, isEmpty);
-    }
+      ActivityDisposition.flutterPage,
+    );
+    expect(difference.status, ActivityMigrationStatus.complete);
+    expect(difference.flutterSurface, 'VipDifferenceUpgradePage');
     expect(purchasePayment.evidence, isNot(contains('VipPayPopup pending')));
     expect(purchasePayment.evidence, contains('OpenVipDaZhaoActivity pending'));
     expect(
       purchasePayment.evidence,
-      contains('VipDifferenceUpgradeActivity pending'),
+      contains('difference-upgrade eligibility'),
     );
   });
 

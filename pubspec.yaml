@@ -19,6 +19,7 @@ dev_dependencies:
     sdk: flutter
 
 flutter:
+  default-flavor: dev
   uses-material-design: true
   assets:
     - assets/images/bg_wel_new.png
