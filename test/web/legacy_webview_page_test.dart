@@ -1,8 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ultcpa_flutter/src/web/legacy_webview_page.dart';
 
 void main() {
+  test('installs the Android-compatible H5 close and invite APIs', () {
+    final closeOnly = buildLegacyWebApiBootstrap(enableInviteShare: false);
+    expect(closeOnly, contains('window.Jx885WebApi.WebViewFinish'));
+    expect(
+      closeOnly,
+      contains("$legacyWebFinishChannelName.postMessage('')"),
+    );
+    expect(closeOnly, isNot(contains('openInviteShare')));
+
+    final withInvite = buildLegacyWebApiBootstrap(enableInviteShare: true);
+    expect(withInvite, contains('window.Jx885WebApi.openInviteShare'));
+    expect(
+      withInvite,
+      contains('$legacyInviteShareChannelName.postMessage'),
+    );
+  });
+
   testWidgets('shows the exact title and URI then returns with back', (
     tester,
   ) async {
@@ -51,6 +69,11 @@ void main() {
 
     expect(find.byType(LegacyWebViewPage), findsOneWidget);
     expect(find.byType(AppBar), findsNothing);
+    final overlay = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
+      find.byType(AnnotatedRegion<SystemUiOverlayStyle>),
+    );
+    expect(overlay.value.statusBarColor, Colors.transparent);
+    expect(overlay.value.statusBarIconBrightness, Brightness.light);
     expect(find.text('邀请好友'), findsNothing);
     expect(
       find.text('CONTENT:https://example.com/invite?t=token&env=test'),

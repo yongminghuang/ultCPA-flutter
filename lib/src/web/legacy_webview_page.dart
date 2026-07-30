@@ -1,7 +1,30 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+
+const legacyWebFinishChannelName = 'Jx885WebFinish';
+const legacyInviteShareChannelName = 'Jx885InviteShare';
+
+@visibleForTesting
+String buildLegacyWebApiBootstrap({required bool enableInviteShare}) {
+  final inviteShareBridge = enableInviteShare
+      ? '''
+    window.Jx885WebApi.openInviteShare = function(content) {
+      $legacyInviteShareChannelName.postMessage(String(content || ''));
+    };'''
+      : '';
+  return '''
+  (function() {
+    window.Jx885WebApi = window.Jx885WebApi || {};
+    window.Jx885WebApi.WebViewFinish = function() {
+      $legacyWebFinishChannelName.postMessage('');
+    };$inviteShareBridge
+  })();
+  ''';
+}
 
 final class LegacyWebRequest {
   const LegacyWebRequest({
@@ -39,6 +62,12 @@ final class LegacyWebViewPage extends StatefulWidget {
 }
 
 final class _LegacyWebViewPageState extends State<LegacyWebViewPage> {
+  static const _immersiveOverlayStyle = SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.light,
+    statusBarBrightness: Brightness.dark,
+  );
+
   WebViewController? _controller;
   int _progress = 100;
   bool _handlingBack = false;
@@ -51,10 +80,14 @@ final class _LegacyWebViewPageState extends State<LegacyWebViewPage> {
       _progress = 0;
       final controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setBackgroundColor(Colors.white);
+        ..setBackgroundColor(Colors.white)
+        ..addJavaScriptChannel(
+          legacyWebFinishChannelName,
+          onMessageReceived: (_) => _finishPage(),
+        );
       if (widget.onInviteShare != null) {
         controller.addJavaScriptChannel(
-          'Jx885InviteShare',
+          legacyInviteShareChannelName,
           onMessageReceived: (message) {
             final callback = widget.onInviteShare;
             if (callback != null && mounted) {
@@ -70,13 +103,11 @@ final class _LegacyWebViewPageState extends State<LegacyWebViewPage> {
               if (mounted) setState(() => _progress = progress);
             },
             onPageFinished: (_) async {
-              if (widget.onInviteShare == null) return;
-              await controller.runJavaScript('''
-                window.Jx885WebApi = window.Jx885WebApi || {};
-                window.Jx885WebApi.openInviteShare = function(content) {
-                  Jx885InviteShare.postMessage(String(content || ''));
-                };
-              ''');
+              await controller.runJavaScript(
+                buildLegacyWebApiBootstrap(
+                  enableInviteShare: widget.onInviteShare != null,
+                ),
+              );
             },
           ),
         )
@@ -96,16 +127,21 @@ final class _LegacyWebViewPageState extends State<LegacyWebViewPage> {
       }
       if (!mounted) return;
       if (controller == null) {
-        await Navigator.of(context).maybePop();
+        _finishPage();
         return;
       }
-      setState(() => _allowPop = true);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) Navigator.of(context).maybePop();
-      });
+      _finishPage();
     } finally {
       _handlingBack = false;
     }
+  }
+
+  void _finishPage() {
+    if (!mounted || _allowPop) return;
+    setState(() => _allowPop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).maybePop();
+    });
   }
 
   @override
@@ -113,7 +149,7 @@ final class _LegacyWebViewPageState extends State<LegacyWebViewPage> {
     final content =
         widget.contentBuilder?.call(context, widget.request.uri) ??
         WebViewWidget(controller: _controller!);
-    return PopScope<void>(
+    final page = PopScope<void>(
       canPop: _controller == null || _allowPop,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) unawaited(_handleBack());
@@ -160,6 +196,11 @@ final class _LegacyWebViewPageState extends State<LegacyWebViewPage> {
           ],
         ),
       ),
+    );
+    if (!widget.request.hideTitleBar) return page;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: _immersiveOverlayStyle,
+      child: page,
     );
   }
 }
