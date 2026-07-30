@@ -26,6 +26,9 @@ void main() {
     'android/app/src/main/kotlin/com/xmzj/ult/agg/wxapi/'
     'WXPayEntryActivity.kt',
   );
+  final wxEntryActivity = File(
+    'android/app/src/main/kotlin/com/xmzj/ult/agg/wxapi/WXEntryActivity.kt',
+  );
   final manifest = File('android/app/src/main/AndroidManifest.xml');
   final preExamSixPaperPaths = File(
     'android/app/src/main/res/xml/pre_exam_six_paper_file_paths.xml',
@@ -534,6 +537,27 @@ void main() {
       manifestSource,
       contains('<package android:name="com.tencent.mm" />'),
     );
+  });
+
+  test('registers the native WeChat friend and timeline share callback', () {
+    final manifestSource = manifest.readAsStringSync();
+
+    expect(wxEntryActivity.existsSync(), isTrue);
+    if (!wxEntryActivity.existsSync()) return;
+
+    final callback = wxEntryActivity.readAsStringSync();
+    expect(callback, contains('package com.xmzj.ult.agg.wxapi'));
+    expect(callback, contains('IWXAPIEventHandler'));
+    expect(callback, contains('WXAPIFactory.createWXAPI'));
+    expect(callback, contains('api.handleIntent'));
+    expect(callback, contains('override fun onReq'));
+    expect(callback, contains('override fun onResp'));
+    expect(
+      manifestSource,
+      contains('android:name=".wxapi.WXEntryActivity"'),
+    );
+    expect(manifestSource, contains('android:exported="true"'));
+    expect(manifestSource, contains('android:launchMode="singleTop"'));
   });
 
   test('confines Mine app updates and exports the exact build channel', () {

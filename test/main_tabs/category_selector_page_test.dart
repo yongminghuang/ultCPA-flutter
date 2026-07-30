@@ -80,6 +80,39 @@ void main() {
 
     expect(result, isNull);
   });
+
+  testWidgets(
+    'scrolls back to the first group after selecting the last group',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CategorySelectorPage(
+            groups: _scrollGroups,
+            selectedKey: _scrollGroups.first.options.first.key,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final firstSection = find.byKey(const ValueKey('category-section-分组 1'));
+      final initialSectionTop = tester.getTopLeft(firstSection).dy;
+
+      await tester.tap(find.byKey(const ValueKey('category-group-分组 5')));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester
+            .getTopLeft(find.byKey(const ValueKey('category-section-分组 5')))
+            .dy,
+        closeTo(initialSectionTop, 1),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('category-group-分组 1')));
+      await tester.pumpAndSettle();
+
+      expect(tester.getTopLeft(firstSection).dy, closeTo(initialSectionTop, 1));
+    },
+  );
 }
 
 const _socialSubjects = [
@@ -114,3 +147,21 @@ const _groups = [
   CategoryGroup(label: '社工', options: [_socialOption]),
   CategoryGroup(label: '会计', options: [_accountingOption]),
 ];
+
+final _scrollGroups = List.generate(5, (groupIndex) {
+  final optionCount = groupIndex == 0 || groupIndex == 4 ? 1 : 3;
+  return CategoryGroup(
+    label: '分组 ${groupIndex + 1}',
+    options: List.generate(optionCount, (optionIndex) {
+      final id = groupIndex * 10 + optionIndex + 1;
+      return CategoryOption(
+        key: 'group-$groupIndex-$optionIndex',
+        appType: 'group-$groupIndex',
+        id: id,
+        label: '类目 $id',
+        subjects: const [CategorySubject(id: 1, name: '科目')],
+        raw: {'id': id, 'level': '类目 $id'},
+      );
+    }),
+  );
+});

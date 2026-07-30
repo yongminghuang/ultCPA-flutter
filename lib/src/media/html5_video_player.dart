@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../teacher_course/teacher_course_models.dart';
 
@@ -31,13 +32,23 @@ final class Html5VideoController extends ChangeNotifier {
   double get playbackSpeed => _playbackSpeed;
 
   Future<void> play() async {
-    _update(isPlaying: true);
-    await _run('document.getElementById("player")?.play().catch(()=>{});');
+    if (_runJavaScript == null) {
+      _update(isPlaying: true);
+      return;
+    }
+    await _run(
+      '(()=>{const p=document.getElementById("player");'
+      'if(!p){return;}p.play().then(()=>window.courseEmit?.())'
+      '.catch(()=>window.courseEmit?.());})();',
+    );
   }
 
   Future<void> pause() async {
     _update(isPlaying: false);
-    await _run('document.getElementById("player")?.pause();');
+    await _run(
+      '(()=>{const p=document.getElementById("player");'
+      'if(p){p.pause();window.courseEmit?.();}})();',
+    );
   }
 
   Future<void> togglePlayback() => isPlaying ? pause() : play();
@@ -233,7 +244,18 @@ final class _Html5VideoPlayerState extends State<Html5VideoPlayer>
         },
       );
     _controller = controller;
-    unawaited(controller.loadHtmlString(_videoHtml()));
+    unawaited(_configureAndLoad(controller));
+  }
+
+  Future<void> _configureAndLoad(WebViewController controller) async {
+    final platform = controller.platform;
+    if (platform is AndroidWebViewController) {
+      // The visible play button lives in Flutter, not inside the WebView. An
+      // Android WebView therefore does not treat that tap as a media gesture.
+      // Allow the subsequent JavaScript play() call to start the video.
+      await platform.setMediaPlaybackRequiresUserGesture(false);
+    }
+    await controller.loadHtmlString(_videoHtml());
   }
 
   String _videoHtml() {
@@ -250,9 +272,14 @@ final class _Html5VideoPlayerState extends State<Html5VideoPlayer>
 const player=document.getElementById('player');
 let lastReported=-5000;
 const emit=()=>CourseState.postMessage(JSON.stringify({positionMs:Math.floor((player.currentTime||0)*1000),durationMs:Number.isFinite(player.duration)?Math.floor(player.duration*1000):0,playing:!player.paused&&!player.ended,muted:player.muted,speed:player.playbackRate||1}));
+window.courseEmit=emit;
 player.addEventListener('loadedmetadata',()=>{const target=$initialSeconds;if(Number.isFinite(target)&&target>0&&target<player.duration){player.currentTime=target;}emit();player.play().then(emit).catch(emit);});
 player.addEventListener('timeupdate',()=>{const ms=Math.floor(player.currentTime*1000);emit();if(ms-lastReported>=5000){lastReported=ms;CourseProgress.postMessage(String(ms));}});
 player.addEventListener('play',emit);
+player.addEventListener('playing',emit);
+player.addEventListener('canplay',emit);
+player.addEventListener('waiting',emit);
+player.addEventListener('stalled',emit);
 player.addEventListener('pause',()=>{emit();CourseProgress.postMessage(String(Math.floor(player.currentTime*1000)));});
 player.addEventListener('ratechange',emit);
 player.addEventListener('volumechange',emit);

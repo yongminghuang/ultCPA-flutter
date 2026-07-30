@@ -237,26 +237,28 @@ final class _CategorySelectorPageState extends State<CategorySelectorPage> {
                       );
                       return NotificationListener<ScrollNotification>(
                         onNotification: _handleRightScroll,
-                        child: ListView(
+                        child: SingleChildScrollView(
                           key: _rightListKey,
                           padding: EdgeInsets.fromLTRB(16, 0, 16, bottomSpace),
-                          children: [
-                            for (
-                              var index = 0;
-                              index < widget.groups.length;
-                              index++
-                            )
-                              _CategorySection(
-                                key: _sectionKeys[index],
-                                group: widget.groups[index],
-                                selectedKey: widget.selectedKey,
-                                onSelected: (option) {
-                                  Navigator.of(
-                                    context,
-                                  ).pop<CategoryOption>(option);
-                                },
-                              ),
-                          ],
+                          child: Column(
+                            children: [
+                              for (
+                                var index = 0;
+                                index < widget.groups.length;
+                                index++
+                              )
+                                _CategorySection(
+                                  key: _sectionKeys[index],
+                                  group: widget.groups[index],
+                                  selectedKey: widget.selectedKey,
+                                  onSelected: (option) {
+                                    Navigator.of(
+                                      context,
+                                    ).pop<CategoryOption>(option);
+                                  },
+                                ),
+                            ],
+                          ),
                         ),
                       );
                     },
