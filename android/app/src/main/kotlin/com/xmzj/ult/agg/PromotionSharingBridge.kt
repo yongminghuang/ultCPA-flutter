@@ -175,10 +175,14 @@ class PromotionSharingBridge(private val activity: Activity) {
         val api = requireWechat(result) ?: return
         val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
             ?: throw IllegalArgumentException("海报图片无效")
-        val message = WXMediaMessage(WXImageObject(bytes)).apply {
-            thumbData = createThumbnail(bitmap)
+        val message = try {
+            val shareBytes = fitWechatImagePayload(bitmap, bytes)
+            WXMediaMessage(WXImageObject(shareBytes)).apply {
+                thumbData = createThumbnail(bitmap)
+            }
+        } finally {
+            bitmap.recycle()
         }
-        bitmap.recycle()
         sendWechat(
             api,
             message,
@@ -304,6 +308,41 @@ class PromotionSharingBridge(private val activity: Activity) {
         return api
     }
 
+    private fun fitWechatImagePayload(
+        source: Bitmap,
+        originalBytes: ByteArray,
+    ): ByteArray {
+        if (originalBytes.size <= MAX_WECHAT_IMAGE_BYTES) return originalBytes
+
+        var working = source
+        try {
+            while (true) {
+                var quality = INITIAL_WECHAT_IMAGE_QUALITY
+                while (quality >= MIN_WECHAT_IMAGE_QUALITY) {
+                    val bytes = ByteArrayOutputStream().use { output ->
+                        check(working.compress(Bitmap.CompressFormat.JPEG, quality, output)) {
+                            "海报图片压缩失败"
+                        }
+                        output.toByteArray()
+                    }
+                    if (bytes.size <= MAX_WECHAT_IMAGE_BYTES) return bytes
+                    quality -= WECHAT_IMAGE_QUALITY_STEP
+                }
+
+                val scaled = Bitmap.createScaledBitmap(
+                    working,
+                    (working.width * WECHAT_IMAGE_SCALE_STEP).toInt().coerceAtLeast(1),
+                    (working.height * WECHAT_IMAGE_SCALE_STEP).toInt().coerceAtLeast(1),
+                    true,
+                )
+                if (working !== source) working.recycle()
+                working = scaled
+            }
+        } finally {
+            if (working !== source) working.recycle()
+        }
+    }
+
     private fun createThumbnail(source: Bitmap): ByteArray {
         val ratio = minOf(THUMB_SIZE.toFloat() / source.width, THUMB_SIZE.toFloat() / source.height, 1f)
         val width = (source.width * ratio).toInt().coerceAtLeast(1)
@@ -357,5 +396,10 @@ class PromotionSharingBridge(private val activity: Activity) {
         private const val STORAGE_PERMISSION_REQUEST = 9301
         private const val THUMB_SIZE = 150
         private const val MAX_THUMB_BYTES = 32 * 1024
+        private const val MAX_WECHAT_IMAGE_BYTES = 700 * 1024
+        private const val INITIAL_WECHAT_IMAGE_QUALITY = 92
+        private const val MIN_WECHAT_IMAGE_QUALITY = 60
+        private const val WECHAT_IMAGE_QUALITY_STEP = 8
+        private const val WECHAT_IMAGE_SCALE_STEP = 0.85f
     }
 }
