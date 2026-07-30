@@ -5,12 +5,16 @@ void main() {
   test('loads the Android blockPuzzle challenge', () async {
     final transport = _RecordingTransport([
       {
-        'repCode': '0000',
-        'repData': {
-          'secretKey': '0123456789abcdef',
-          'originalImageBase64': 'base-image',
-          'jigsawImageBase64': 'jigsaw-image',
-          'token': 'token-123',
+        'code': 200,
+        'msg': '操作成功',
+        'body': {
+          'repCode': '0000',
+          'repData': {
+            'secretKey': '0123456789abcdef',
+            'originalImageBase64': 'base-image',
+            'jigsawImageBase64': 'jigsaw-image',
+            'token': 'token-123',
+          },
         },
       },
     ]);
@@ -28,7 +32,14 @@ void main() {
     'checks the drag point and creates the encrypted verification',
     () async {
       final transport = _RecordingTransport([
-        {'repCode': '0000', 'repData': true},
+        {
+          'code': 200,
+          'msg': '操作成功',
+          'body': {
+            'repCode': '0000',
+            'repData': {'result': true},
+          },
+        },
       ]);
       final challenge = CaptchaChallenge(
         secretKey: '0123456789abcdef',
@@ -50,6 +61,86 @@ void main() {
       expect(verification, 'wqUEv21kInO06NJdNEUeIlDDvZRcWfVjYmp74EF58uE=');
     },
   );
+
+  test(
+    'accepts the boolean check response used by the Android endpoint',
+    () async {
+      final client = PhoneCaptchaClient(
+        _RecordingTransport([
+          {'repCode': '0000', 'repData': true},
+        ]),
+      );
+
+      final result = await client.verifyDrag(
+        const CaptchaChallenge(
+          secretKey: '',
+          originalImageBase64: 'base-image',
+          jigsawImageBase64: 'jigsaw-image',
+          token: 'token-123',
+        ),
+        42.5,
+      );
+
+      expect(result, 'token-123---{"x":42.5,"y":5.0}');
+    },
+  );
+
+  test('rejects a check response whose result is false', () async {
+    final client = PhoneCaptchaClient(
+      _RecordingTransport([
+        {
+          'repCode': '0000',
+          'repData': {'result': false},
+        },
+      ]),
+    );
+
+    await expectLater(
+      client.verifyDrag(
+        const CaptchaChallenge(
+          secretKey: '',
+          originalImageBase64: 'base-image',
+          jigsawImageBase64: 'jigsaw-image',
+          token: 'token-123',
+        ),
+        42.5,
+      ),
+      throwsA(
+        isA<CaptchaProtocolException>().having(
+          (error) => error.message,
+          'message',
+          '拼图位置不正确，请重试',
+        ),
+      ),
+    );
+  });
+
+  test('rejects an incomplete challenge response', () async {
+    final client = PhoneCaptchaClient(
+      _RecordingTransport([
+        {
+          'repCode': '0000',
+          'repData': {
+            'secretKey': '0123456789abcdef',
+            'originalImageBase64': '',
+            'jigsawImageBase64': 'jigsaw-image',
+            'token': 'token-123',
+          },
+        },
+      ]),
+    );
+
+    await expectLater(
+      client.loadChallenge(),
+      throwsA(
+        isA<CaptchaProtocolException>().having(
+          (error) => error.message,
+          'message',
+          '验证码数据不完整',
+        ),
+      ),
+    );
+  });
 
   test('uses the real SMS and phone login request shapes', () async {
     final transport = _RecordingTransport([
@@ -94,6 +185,28 @@ void main() {
       ),
     );
   });
+
+  test(
+    'surfaces the app envelope message from a rejected captcha request',
+    () async {
+      final client = PhoneCaptchaClient(
+        _RecordingTransport([
+          {'code': 401, 'msg': '登录已失效，请重新登录'},
+        ]),
+      );
+
+      await expectLater(
+        client.loadChallenge(),
+        throwsA(
+          isA<CaptchaProtocolException>().having(
+            (error) => error.message,
+            'message',
+            '登录已失效，请重新登录',
+          ),
+        ),
+      );
+    },
+  );
 }
 
 final class _RecordingTransport implements CaptchaTransport {

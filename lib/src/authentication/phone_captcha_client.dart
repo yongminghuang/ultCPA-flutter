@@ -61,12 +61,21 @@ final class PhoneCaptchaClient implements PhoneVerificationGateway {
     final response = await _transport.post('/app/captcha/aj/get', {
       'captchaType': 'blockPuzzle',
     });
-    _requireCaptchaSuccess(response);
-    final data = response['repData'];
+    final captchaResponse = _captchaResponse(response);
+    _requireCaptchaSuccess(captchaResponse);
+    final data = captchaResponse['repData'];
     if (data is! Map) {
       throw const CaptchaProtocolException('验证码数据为空');
     }
-    return CaptchaChallenge.fromJson(Map<String, dynamic>.from(data));
+    final challenge = CaptchaChallenge.fromJson(
+      Map<String, dynamic>.from(data),
+    );
+    if (challenge.originalImageBase64.isEmpty ||
+        challenge.jigsawImageBase64.isEmpty ||
+        challenge.token.isEmpty) {
+      throw const CaptchaProtocolException('验证码数据不完整');
+    }
+    return challenge;
   }
 
   @override
@@ -77,7 +86,9 @@ final class PhoneCaptchaClient implements PhoneVerificationGateway {
       'token': challenge.token,
       'pointJson': _aesEncode(pointJson, challenge.secretKey),
     });
-    _requireCaptchaSuccess(response);
+    final captchaResponse = _captchaResponse(response);
+    _requireCaptchaSuccess(captchaResponse);
+    _requireCaptchaCheckPassed(captchaResponse);
     return _aesEncode('${challenge.token}---$pointJson', challenge.secretKey);
   }
 
@@ -117,7 +128,29 @@ final class PhoneCaptchaClient implements PhoneVerificationGateway {
   static void _requireCaptchaSuccess(Map<String, dynamic> response) {
     if (response['repCode'] != '0000') {
       throw CaptchaProtocolException(
-        response['repMsg'] as String? ?? '验证失败，请重试',
+        (response['repMsg'] ??
+                response['msg'] ??
+                response['message'] ??
+                '验证失败，请重试')
+            .toString(),
+      );
+    }
+  }
+
+  static Map<String, dynamic> _captchaResponse(Map<String, dynamic> response) {
+    if (!response.containsKey('code')) return response;
+    _requireAppSuccess(response);
+    final body = response['body'];
+    if (body is Map) return Map<String, dynamic>.from(body);
+    throw const CaptchaProtocolException('验证码响应为空');
+  }
+
+  static void _requireCaptchaCheckPassed(Map<String, dynamic> response) {
+    final data = response['repData'];
+    final passed = data == true || (data is Map && data['result'] == true);
+    if (!passed) {
+      throw CaptchaProtocolException(
+        response['repMsg'] as String? ?? '拼图位置不正确，请重试',
       );
     }
   }

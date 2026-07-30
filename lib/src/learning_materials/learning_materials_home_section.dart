@@ -118,9 +118,25 @@ final class _LearningMaterialsHomeSectionState
     required LearningMaterialsItem item,
     required List<LearningMaterialsItem> items,
   }) async {
-    var snapshot = _snapshot;
+    final cachedSnapshot = _snapshot;
     final shelves = _shelves;
-    if (snapshot == null || shelves == null || shelves.isEmpty) return;
+    if (cachedSnapshot == null || shelves == null || shelves.isEmpty) return;
+    var snapshot = cachedSnapshot;
+
+    // This section can stay alive in the home IndexedStack while the user
+    // signs in from Mine or another guarded feature. Do not make an auth
+    // decision from the snapshot captured when the section was first loaded.
+    // The native state store is the source of truth and is updated before the
+    // login page returns.
+    try {
+      snapshot = await widget.dataSource.readSnapshot();
+      if (!mounted) return;
+      _snapshot = snapshot;
+    } catch (_) {
+      if (!mounted) return;
+      // Keep the already loaded snapshot as a safe fallback. A failed local
+      // state read must never grant access that the cached state denied.
+    }
     if (!snapshot.isLoggedIn) {
       final launcher = widget.loginLauncher;
       if (launcher == null) {
@@ -253,15 +269,14 @@ final class _LearningMaterialsHomeSectionState
                         shelf: shelves[index],
                         pageSize: widget.pageSize,
                         ossDomain: snapshot.ossDomain,
-                        onItemTap: (item, clickedIndex, items) =>
-                            unawaited(
-                              _openFromHome(
-                                tabIndex: index,
-                                clickedIndex: clickedIndex,
-                                item: item,
-                                items: items,
-                              ),
-                            ),
+                        onItemTap: (item, clickedIndex, items) => unawaited(
+                          _openFromHome(
+                            tabIndex: index,
+                            clickedIndex: clickedIndex,
+                            item: item,
+                            items: items,
+                          ),
+                        ),
                       ),
                   ],
                 ),
@@ -382,9 +397,7 @@ final class _LearningMaterialsHomeShelfPaneState
       if (_items.isNotEmpty) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(
-            const SnackBar(content: Text('网络开小差了，请稍后重试')),
-          );
+          ..showSnackBar(const SnackBar(content: Text('网络开小差了，请稍后重试')));
       }
     }
   }
@@ -571,10 +584,7 @@ final class _HomeSectionFailure extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              '学习资料加载失败',
-              style: TextStyle(color: Color(0xFF64748B)),
-            ),
+            const Text('学习资料加载失败', style: TextStyle(color: Color(0xFF64748B))),
             if (error != null)
               Text(
                 error.toString(),

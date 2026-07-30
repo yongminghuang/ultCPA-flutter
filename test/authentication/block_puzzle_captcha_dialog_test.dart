@@ -43,6 +43,73 @@ void main() {
 
     expect(gateway.loadCalls, 2);
   });
+
+  testWidgets('returns the verification after showing success feedback', (
+    tester,
+  ) async {
+    final gateway = _Gateway(cover: _coverPng, block: _blockPng);
+    String? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              result = await showBlockPuzzleCaptchaDialog(context, gateway);
+            },
+            child: const Text('打开验证码'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('打开验证码'));
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byKey(const Key('captcha-slider')),
+      const Offset(500, 0),
+    );
+    await tester.pump();
+
+    expect(find.text('验证成功'), findsOneWidget);
+    expect(result, isNull);
+
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+
+    expect(result, 'captcha-verification');
+    expect(find.text('打开验证码'), findsOneWidget);
+  });
+
+  testWidgets('failed verification shows feedback and refreshes the puzzle', (
+    tester,
+  ) async {
+    final gateway = _Gateway(
+      cover: _coverPng,
+      block: _blockPng,
+      verificationFailures: 1,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BlockPuzzleCaptchaDialog(gateway: gateway, onVerified: (_) {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.drag(
+      find.byKey(const Key('captcha-slider')),
+      const Offset(180, 0),
+    );
+    await tester.pump();
+
+    expect(find.text('验证失败'), findsOneWidget);
+    expect(find.textContaining('正在刷新'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+
+    expect(gateway.loadCalls, 2);
+    expect(find.text('拖动滑块完成拼图'), findsOneWidget);
+  });
 }
 
 const _coverPng =
@@ -53,11 +120,17 @@ const _smallPng =
     'iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFElEQVR4nGP4n83wnxjMMKqQvgoBIgPxBbXDc/EAAAAASUVORK5CYII=';
 
 final class _Gateway implements PhoneVerificationGateway {
-  _Gateway({required this.cover, required this.block});
+  _Gateway({
+    required this.cover,
+    required this.block,
+    this.verificationFailures = 0,
+  });
 
   final String cover;
   final String block;
+  final int verificationFailures;
   int loadCalls = 0;
+  int verifyCalls = 0;
   double? sliderX;
 
   @override
@@ -73,7 +146,11 @@ final class _Gateway implements PhoneVerificationGateway {
 
   @override
   Future<String> verifyDrag(CaptchaChallenge challenge, double sliderX) async {
+    verifyCalls += 1;
     this.sliderX = sliderX;
+    if (verifyCalls <= verificationFailures) {
+      throw const CaptchaProtocolException('拼图位置不正确');
+    }
     return 'captcha-verification';
   }
 

@@ -14,10 +14,7 @@ void main() {
       snapshot: _snapshot(isLoggedIn: true),
       shelves: [_shelf(11, '每日精选'), _shelf(12, '冲刺资料')],
       pages: {
-        (11, 1): _page([
-          _item(1, '第一份资料'),
-          _item(2, '视频资料', type: '视频'),
-        ]),
+        (11, 1): _page([_item(1, '第一份资料'), _item(2, '视频资料', type: '视频')]),
         (12, 1): _page([_item(3, '第二栏资料')]),
       },
     );
@@ -85,6 +82,43 @@ void main() {
     await tester.pump();
 
     expect(loginCalls, 1);
+    expect(launched?.appSnapshot.isLoggedIn, isTrue);
+  });
+
+  testWidgets('refreshes a stale logged-out snapshot before opening an item', (
+    tester,
+  ) async {
+    final source = _Source(
+      snapshot: _snapshot(isLoggedIn: false),
+      shelves: [_shelf(11, '精选')],
+      pages: {
+        (11, 1): _page([_item(1, '已登录资料')]),
+      },
+    );
+    var loginCalls = 0;
+    LearningMaterialsFeedRequest? launched;
+
+    await tester.pumpWidget(
+      _app(
+        source,
+        loginLauncher: (context) async {
+          loginCalls += 1;
+          return {'token': 'unexpected-login'};
+        },
+        feedLauncher: (context, request) async => launched = request,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Simulates signing in from Mine while the home IndexedStack remains
+    // mounted with the snapshot it loaded before authentication.
+    source.snapshot = _snapshot(isLoggedIn: true);
+    await tester.tap(
+      find.byKey(const ValueKey('learning-material-home-item-11-1')),
+    );
+    await tester.pump();
+
+    expect(loginCalls, 0);
     expect(launched?.appSnapshot.isLoggedIn, isTrue);
   });
 
@@ -175,12 +209,7 @@ void main() {
   });
 }
 
-const _module = HomeModule(
-  id: 88,
-  name: '学习资料',
-  page: '学习资料',
-  tag: '',
-);
+const _module = HomeModule(id: 88, name: '学习资料', page: '学习资料', tag: '');
 
 Widget _app(
   LearningMaterialsDataSource source, {
@@ -240,7 +269,7 @@ final class _Source implements LearningMaterialsDataSource {
     this.shelfError,
   });
 
-  final LearningMaterialsAppSnapshot snapshot;
+  LearningMaterialsAppSnapshot snapshot;
   final List<LearningMaterialsShelf> shelves;
   final Map<(int, int), LearningMaterialsPage> pages;
   final Object? shelfError;

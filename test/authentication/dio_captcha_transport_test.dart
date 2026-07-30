@@ -12,7 +12,11 @@ void main() {
     final transport = DioCaptchaTransport(
       dio: dio,
       baseUrl: 'https://ult-test.xmzhujing.com',
-      headers: () async => {'X-sign': 'signed', 'X-category': 'social-work'},
+      headers: () async => {
+        'X-sign': 'signed',
+        'X-category': 'social-work',
+        'Authorization': 'expired-token',
+      },
     );
 
     final result = await transport.post('/app/captcha/aj/get', {
@@ -25,6 +29,7 @@ void main() {
     );
     expect(adapter.request?.method, 'POST');
     expect(adapter.request?.headers['X-sign'], 'signed');
+    expect(adapter.request?.headers['Authorization'], 'expired-token');
     expect(adapter.request?.data, {'captchaType': 'blockPuzzle'});
     expect(result['repCode'], '0000');
   });
