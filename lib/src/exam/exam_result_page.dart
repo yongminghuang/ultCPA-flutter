@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../practice/practice_models.dart';
+import '../practice/practice_repository.dart';
 import 'exam_models.dart';
 import 'exam_review_page.dart';
 
@@ -14,6 +15,7 @@ final class ExamResultPage extends StatefulWidget {
     this.uploadFailed = false,
     this.onImprove,
     this.onMnemonics,
+    this.skillExplanationDataSource,
     super.key,
   });
 
@@ -21,6 +23,7 @@ final class ExamResultPage extends StatefulWidget {
   final bool uploadFailed;
   final ExamImproveLauncher? onImprove;
   final ExamImproveLauncher? onMnemonics;
+  final PracticeSkillExplanationDataSource? skillExplanationDataSource;
 
   @override
   State<ExamResultPage> createState() => _ExamResultPageState();
@@ -234,6 +237,7 @@ final class _ExamResultPageState extends State<ExamResultPage> {
           title: title,
           result: widget.result,
           questions: questions,
+          skillExplanationDataSource: widget.skillExplanationDataSource,
         ),
       ),
     );

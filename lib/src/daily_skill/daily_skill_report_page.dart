@@ -21,6 +21,7 @@ final class DailySkillReportPage extends StatefulWidget {
     required this.progressStore,
     required this.improveLauncher,
     this.analysisLauncher,
+    this.skillExplanationDataSource,
     super.key,
   });
 
@@ -29,6 +30,7 @@ final class DailySkillReportPage extends StatefulWidget {
   final DailySkillProgressDataSource progressStore;
   final DailySkillAnalysisLauncher? analysisLauncher;
   final DailySkillReportImproveLauncher improveLauncher;
+  final PracticeSkillExplanationDataSource? skillExplanationDataSource;
 
   @override
   State<DailySkillReportPage> createState() => _DailySkillReportPageState();
@@ -235,6 +237,7 @@ final class _DailySkillReportPageState extends State<DailySkillReportPage> {
             title: catalog.title,
           ),
           dataSource: _DailySkillAnalysisDataSource(catalog),
+          skillExplanationDataSource: widget.skillExplanationDataSource,
         ),
       ),
     );

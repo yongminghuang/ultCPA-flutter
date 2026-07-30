@@ -42,6 +42,7 @@ void main() {
       expect(VipPayEntry.secretPaperBottom.conversionEntryId, 1012);
       expect(VipPayEntry.smartCard.conversionEntryId, 1013);
       expect(VipPayEntry.preExamSixPaper.conversionEntryId, 1014);
+      expect(VipPayEntry.mnemonicsLockedList.conversionEntryId, 1016);
       expect(VipPayEntry.pastExams.conversionEntryId, 1021);
       expect(VipPayEntry.circlePaperResult.conversionEntryId, 1026);
 
@@ -59,6 +60,10 @@ void main() {
       );
       expect(VipPaymentSource.fast300.differencePayPageSourceId, 2003);
       expect(VipPaymentSource.smartCard.differencePayPageSourceId, 2004);
+      expect(
+        VipPaymentSource.mnemonicsLockedList.differencePayPageSourceId,
+        2006,
+      );
       expect(VipPaymentSource.courseTrial.differencePayPageSourceId, 2008);
 
       final request = VipPurchaseRequest.popup(

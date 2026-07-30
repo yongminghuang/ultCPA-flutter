@@ -107,7 +107,7 @@ void main() {
     await tester.tap(find.text('综合能力'));
     await tester.pumpAndSettle();
 
-    expect(dataSource.courseCalls, 3);
+    expect(dataSource.courseCalls, 2);
     expect(dataSource.requestedTypes.last, CourseType.secret);
     expect(dataSource.requestedSubjects.last, isNull);
     expect(dataSource.mineCalls, 2);
@@ -378,7 +378,7 @@ void main() {
     expect(launchCalls, 2);
     expect(dataSource.mineCalls, 2);
     expect(dataSource.homeCalls, 1);
-    expect(dataSource.courseCalls, 2);
+    expect(dataSource.courseCalls, 1);
     expect(dataSource.requestedTypes.last, CourseType.secret);
     expect(
       tester

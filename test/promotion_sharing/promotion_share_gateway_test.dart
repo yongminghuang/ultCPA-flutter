@@ -21,6 +21,10 @@ void main() {
                 'name': '自定义姓名',
                 'phone': '13900139000',
               },
+              'readSelectedPromotionPoster' => {
+                'posterId': 'poster-8',
+                'templateUrl': 'https://example.com/poster.png',
+              },
               'createPromotionQrCode' => Uint8List.fromList([1, 2, 3]),
               _ => null,
             };
@@ -35,6 +39,15 @@ void main() {
         const PromotionProfile(name: '默认', phone: '13800138000'),
       );
       await gateway.saveProfile(profile);
+      final selectedPoster = await gateway.readSelectedPoster();
+      await gateway.saveSelectedPoster(
+        const PromotionPoster(
+          id: 'poster-8',
+          templateUrl: 'https://example.com/poster.png',
+          sampleUrl: 'https://example.com/poster-small.png',
+          showStatus: true,
+        ),
+      );
       expect(await gateway.createQrCode('https://example.com'), [1, 2, 3]);
       await gateway.shareWechatImage(
         Uint8List.fromList([8, 9]),
@@ -49,17 +62,20 @@ void main() {
       await gateway.saveImage(Uint8List.fromList([6, 7]));
 
       expect(profile.name, '自定义姓名');
+      expect(selectedPoster?.posterId, 'poster-8');
       expect(calls.map((call) => call.method), [
         'readPromotionProfile',
         'savePromotionProfile',
+        'readSelectedPromotionPoster',
+        'saveSelectedPromotionPoster',
         'createPromotionQrCode',
         'shareWechatImage',
         'shareWechatWebpage',
         'savePromotionImage',
       ]);
-      expect((calls[3].arguments as Map<Object?, Object?>)['timeline'], isTrue);
+      expect((calls[5].arguments as Map<Object?, Object?>)['timeline'], isTrue);
       expect(
-        (calls[4].arguments as Map<Object?, Object?>)['url'],
+        (calls[6].arguments as Map<Object?, Object?>)['url'],
         'https://example.com/share',
       );
     },

@@ -10,6 +10,7 @@ import 'package:ultcpa_flutter/src/main_tabs/main_tabs_models.dart';
 import 'package:ultcpa_flutter/src/practice/practice_models.dart';
 import 'package:ultcpa_flutter/src/practice/practice_page.dart';
 import 'package:ultcpa_flutter/src/practice/practice_repository.dart';
+import 'package:ultcpa_flutter/src/skill_mnemonics/skill_mnemonics_models.dart';
 
 void main() {
   testWidgets('shows loading then returns when today progress is missing', (
@@ -252,9 +253,11 @@ void main() {
     tester,
   ) async {
     final source = _Source((_) async => [_question('101')]);
+    final skillSource = _SkillSource();
     await tester.pumpWidget(
       _app(
         source: source,
+        skillExplanationDataSource: skillSource,
         progressStore: _ProgressStore(
           () async => _progress(
             questionOrder: const [101],
@@ -278,6 +281,9 @@ void main() {
     expect(find.byType(PracticePage), findsOneWidget);
     expect(find.text('查看全部解析'), findsOneWidget);
     expect(find.text('正确答案：A'), findsOneWidget);
+    expect(skillSource.questionIds, ['101']);
+    expect(find.text('速记技巧'), findsOneWidget);
+    expect(find.text('技巧 101', findRichText: true), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('practice-next')));
     await tester.pumpAndSettle();
     expect(find.text('当前已是最后一题'), findsOneWidget);
@@ -310,6 +316,7 @@ Widget _app({
   DailySkillDataSource? source,
   DailySkillProgressDataSource? progressStore,
   DailySkillAnalysisLauncher? analysisLauncher,
+  PracticeSkillExplanationDataSource? skillExplanationDataSource,
   Future<void> Function(BuildContext context)? improveLauncher,
 }) {
   return MaterialApp(
@@ -320,6 +327,7 @@ Widget _app({
           progressStore ??
           _ProgressStore(() async => _progress(questionOrder: const [101])),
       analysisLauncher: analysisLauncher,
+      skillExplanationDataSource: skillExplanationDataSource,
       improveLauncher: improveLauncher ?? (_) async {},
     ),
   );
@@ -398,6 +406,21 @@ final class _Source implements DailySkillDataSource {
   Future<List<PracticeQuestion>> loadQuestions(String skillId) {
     loadedSkillIds.add(skillId);
     return questionLoader(skillId);
+  }
+}
+
+final class _SkillSource implements PracticeSkillExplanationDataSource {
+  final List<String> questionIds = [];
+
+  @override
+  Future<List<SkillMnemonic>> loadSkillsForQuestion(String questionId) async {
+    questionIds.add(questionId);
+    return [
+      SkillMnemonic.fromMap({
+        'skillId': 'skill-$questionId',
+        'text': '技巧 $questionId',
+      }),
+    ];
   }
 }
 

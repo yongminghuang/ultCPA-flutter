@@ -9,6 +9,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.os.Build
 import android.os.Environment
+import android.preference.PreferenceManager
 import android.provider.MediaStore
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -22,7 +23,6 @@ import com.tencent.mm.opensdk.modelmsg.WXMediaMessage
 import com.tencent.mm.opensdk.modelmsg.WXWebpageObject
 import com.tencent.mm.opensdk.openapi.IWXAPI
 import com.tencent.mm.opensdk.openapi.WXAPIFactory
-import com.tencent.mmkv.MMKV
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -42,6 +42,8 @@ class PromotionSharingBridge(private val activity: Activity) {
                 when (call.method) {
                     "readPromotionProfile" -> readProfile(call, result)
                     "savePromotionProfile" -> saveProfile(call, result)
+                    "readSelectedPromotionPoster" -> readSelectedPoster(result)
+                    "saveSelectedPromotionPoster" -> saveSelectedPoster(call, result)
                     "createPromotionQrCode" -> createQrCode(call, result)
                     "shareWechatImage" -> shareWechatImage(call, result)
                     "shareWechatWebpage" -> shareWechatWebpage(call, result)
@@ -86,13 +88,13 @@ class PromotionSharingBridge(private val activity: Activity) {
     }
 
     private fun readProfile(call: MethodCall, result: MethodChannel.Result) {
-        val appKv = requireNotNull(MMKV.mmkvWithID("App"))
+        val preferences = PreferenceManager.getDefaultSharedPreferences(activity)
         val fallbackName = call.argument<String>("fallbackName").orEmpty()
         val fallbackPhone = call.argument<String>("fallbackPhone").orEmpty()
         result.success(
             mapOf(
-                "name" to appKv.decodeString(PROFILE_NAME_KEY, fallbackName).orEmpty(),
-                "phone" to appKv.decodeString(PROFILE_PHONE_KEY, fallbackPhone).orEmpty(),
+                "name" to preferences.getString(PROFILE_NAME_KEY, fallbackName).orEmpty(),
+                "phone" to preferences.getString(PROFILE_PHONE_KEY, fallbackPhone).orEmpty(),
             ),
         )
     }
@@ -100,9 +102,42 @@ class PromotionSharingBridge(private val activity: Activity) {
     private fun saveProfile(call: MethodCall, result: MethodChannel.Result) {
         val name = call.argument<String>("name").orEmpty().trim().take(10)
         val phone = call.argument<String>("phone").orEmpty().trim().take(11)
-        val appKv = requireNotNull(MMKV.mmkvWithID("App"))
-        check(appKv.encode(PROFILE_NAME_KEY, name)) { "姓名保存失败" }
-        check(appKv.encode(PROFILE_PHONE_KEY, phone)) { "联系电话保存失败" }
+        val preferences = PreferenceManager.getDefaultSharedPreferences(activity)
+        check(
+            preferences.edit()
+                .putString(PROFILE_NAME_KEY, name)
+                .putString(PROFILE_PHONE_KEY, phone)
+                .commit(),
+        ) { "招生信息保存失败" }
+        result.success(null)
+    }
+
+    private fun readSelectedPoster(result: MethodChannel.Result) {
+        val preferences = PreferenceManager.getDefaultSharedPreferences(activity)
+        if (!preferences.contains(POSTER_ID_KEY)) {
+            result.success(null)
+            return
+        }
+        result.success(
+            mapOf(
+                "posterId" to preferences.getString(POSTER_ID_KEY, "").orEmpty(),
+                "templateUrl" to preferences.getString(POSTER_URL_KEY, "").orEmpty(),
+            ),
+        )
+    }
+
+    private fun saveSelectedPoster(call: MethodCall, result: MethodChannel.Result) {
+        val posterId = call.argument<String>("posterId").orEmpty().trim()
+        val templateUrl = call.argument<String>("templateUrl").orEmpty().trim()
+        require(posterId.isNotEmpty()) { "推广图片编号为空" }
+        require(templateUrl.isNotEmpty()) { "推广图片地址为空" }
+        val preferences = PreferenceManager.getDefaultSharedPreferences(activity)
+        check(
+            preferences.edit()
+                .putString(POSTER_ID_KEY, posterId)
+                .putString(POSTER_URL_KEY, templateUrl)
+                .commit(),
+        ) { "推广图片保存失败" }
         result.success(null)
     }
 
@@ -287,9 +322,13 @@ class PromotionSharingBridge(private val activity: Activity) {
     }
 
     private fun defaultWebpageThumbnail(): ByteArray {
-        val bitmap = Bitmap.createBitmap(120, 120, Bitmap.Config.ARGB_8888)
-        bitmap.eraseColor(Color.rgb(255, 138, 0))
-        val bytes = bitmap.toPngBytes()
+        val bitmap = BitmapFactory.decodeResource(
+            activity.resources,
+            R.drawable.ic_share_thumb,
+        ) ?: Bitmap.createBitmap(120, 120, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.rgb(255, 138, 0))
+        }
+        val bytes = createThumbnail(bitmap)
         bitmap.recycle()
         return bytes
     }
@@ -311,8 +350,10 @@ class PromotionSharingBridge(private val activity: Activity) {
     companion object {
         private const val CHANNEL = "com.xmzj.ult.agg/promotion_sharing"
         private const val WECHAT_APP_ID = "wx8d51616821867104"
-        private const val PROFILE_NAME_KEY = "flutterPromotionName"
-        private const val PROFILE_PHONE_KEY = "flutterPromotionPhone"
+        private const val PROFILE_NAME_KEY = "loc_name"
+        private const val PROFILE_PHONE_KEY = "loc_phone"
+        private const val POSTER_ID_KEY = "setRecommendId"
+        private const val POSTER_URL_KEY = "setRecommendUrl"
         private const val STORAGE_PERMISSION_REQUEST = 9301
         private const val THUMB_SIZE = 150
         private const val MAX_THUMB_BYTES = 32 * 1024

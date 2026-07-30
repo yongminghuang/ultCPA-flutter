@@ -40,6 +40,7 @@ final class PracticePage extends StatefulWidget {
   const PracticePage({
     required this.request,
     required this.dataSource,
+    this.skillExplanationDataSource,
     this.chapterProgressStore = const DisabledChapterPracticeProgressStore(),
     this.flatProgressStore = const DisabledFlatPracticeProgressStore(),
     this.dailySkillProgressStore = const DisabledDailySkillProgressStore(),
@@ -52,6 +53,7 @@ final class PracticePage extends StatefulWidget {
 
   final PracticeRequest request;
   final PracticeDataSource dataSource;
+  final PracticeSkillExplanationDataSource? skillExplanationDataSource;
   final ChapterPracticeProgressStore chapterProgressStore;
   final FlatPracticeProgressStore flatProgressStore;
   final DailySkillProgressDataSource dailySkillProgressStore;
@@ -84,6 +86,15 @@ final class _PracticePageState extends State<PracticePage> {
   final Set<String> _loadingQuestionSkillIds = {};
   final Set<String> _questionSkillErrorIds = {};
   int _questionSkillGeneration = 0;
+
+  PracticeSkillExplanationDataSource? get _skillExplanationDataSource {
+    final injected = widget.skillExplanationDataSource;
+    if (injected != null) return injected;
+    final source = widget.dataSource;
+    return source is PracticeSkillExplanationDataSource
+        ? source as PracticeSkillExplanationDataSource
+        : null;
+  }
 
   void _resetQuestionSkillState() {
     _questionSkillGeneration += 1;
@@ -490,7 +501,7 @@ final class _PracticePageState extends State<PracticePage> {
         question: question,
         palette: palette,
         textScale: _settings.textScale,
-        answer: _session!.answerFor(question),
+        answer: _answerAndEnsureSkills(question),
         draft: _session!.draftFor(question),
         isCollected: _session!.isCollected(question),
         removingWrong: _removingWrongIds.contains(question.id),
@@ -507,6 +518,21 @@ final class _PracticePageState extends State<PracticePage> {
         onRetrySkills: () => unawaited(_loadInlineQuestionSkills(question)),
       ),
     };
+  }
+
+  PracticeAnswer? _answerAndEnsureSkills(PracticeQuestion question) {
+    final answer = _session!.answerFor(question);
+    if (answer != null &&
+        _skillExplanationDataSource != null &&
+        !_questionSkills.containsKey(question.id) &&
+        !_loadingQuestionSkillIds.contains(question.id) &&
+        !_questionSkillErrorIds.contains(question.id)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _session?.answerFor(question) == null) return;
+        unawaited(_loadInlineQuestionSkills(question));
+      });
+    }
+    return answer;
   }
 
   void _handleHorizontalDragEnd(DragEndDetails details) {
@@ -543,11 +569,10 @@ final class _PracticePageState extends State<PracticePage> {
     final generation = _questionSkillGeneration;
     final request = Future<List<SkillMnemonic>>.microtask(() async {
       try {
-        final source = widget.dataSource;
-        final skills = source is PracticeSkillExplanationDataSource
-            ? await (source as PracticeSkillExplanationDataSource)
-                  .loadSkillsForQuestion(question.id)
-            : const <SkillMnemonic>[];
+        final source = _skillExplanationDataSource;
+        final skills = source == null
+            ? const <SkillMnemonic>[]
+            : await source.loadSkillsForQuestion(question.id);
         final immutable = List<SkillMnemonic>.unmodifiable(skills);
         if (generation == _questionSkillGeneration) {
           _questionSkills[question.id] = immutable;

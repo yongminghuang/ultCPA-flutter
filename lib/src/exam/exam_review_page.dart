@@ -1,6 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../practice/practice_models.dart';
+import '../practice/practice_media_player.dart';
+import '../practice/practice_repository.dart';
+import '../skill_mnemonics/skill_mnemonics_models.dart';
+import '../skill_mnemonics/skill_mnemonics_text.dart';
 import 'exam_models.dart';
 
 final class ExamReviewPage extends StatefulWidget {
@@ -8,12 +14,14 @@ final class ExamReviewPage extends StatefulWidget {
     required this.title,
     required this.result,
     required List<PracticeQuestion> questions,
+    this.skillExplanationDataSource,
     super.key,
   }) : questions = List<PracticeQuestion>.unmodifiable(questions);
 
   final String title;
   final ExamResult result;
   final List<PracticeQuestion> questions;
+  final PracticeSkillExplanationDataSource? skillExplanationDataSource;
 
   @override
   State<ExamReviewPage> createState() => _ExamReviewPageState();
@@ -21,6 +29,78 @@ final class ExamReviewPage extends StatefulWidget {
 
 final class _ExamReviewPageState extends State<ExamReviewPage> {
   int _currentIndex = 0;
+  final Map<String, List<SkillMnemonic>> _questionSkills = {};
+  final Set<String> _loadingQuestionIds = {};
+  final Set<String> _failedQuestionIds = {};
+  int _loadGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleCurrentSkills();
+  }
+
+  @override
+  void didUpdateWidget(covariant ExamReviewPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.questions == widget.questions &&
+        oldWidget.skillExplanationDataSource ==
+            widget.skillExplanationDataSource) {
+      return;
+    }
+    _loadGeneration += 1;
+    _questionSkills.clear();
+    _loadingQuestionIds.clear();
+    _failedQuestionIds.clear();
+    _currentIndex = 0;
+    _scheduleCurrentSkills();
+  }
+
+  @override
+  void dispose() {
+    _loadGeneration += 1;
+    super.dispose();
+  }
+
+  void _scheduleCurrentSkills() {
+    if (widget.skillExplanationDataSource == null || widget.questions.isEmpty) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.questions.isEmpty) return;
+      unawaited(_loadSkills(widget.questions[_currentIndex]));
+    });
+  }
+
+  Future<void> _loadSkills(PracticeQuestion question) async {
+    final source = widget.skillExplanationDataSource;
+    if (source == null ||
+        _questionSkills.containsKey(question.id) ||
+        !_loadingQuestionIds.add(question.id)) {
+      return;
+    }
+    final generation = _loadGeneration;
+    _failedQuestionIds.remove(question.id);
+    if (mounted) setState(() {});
+    try {
+      final skills = await source.loadSkillsForQuestion(question.id);
+      if (!mounted || generation != _loadGeneration) return;
+      _questionSkills[question.id] = List<SkillMnemonic>.unmodifiable(skills);
+    } catch (_) {
+      if (!mounted || generation != _loadGeneration) return;
+      _failedQuestionIds.add(question.id);
+    } finally {
+      if (generation == _loadGeneration) {
+        _loadingQuestionIds.remove(question.id);
+        if (mounted) setState(() {});
+      }
+    }
+  }
+
+  void _moveTo(int index) {
+    setState(() => _currentIndex = index);
+    _scheduleCurrentSkills();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +141,9 @@ final class _ExamReviewPageState extends State<ExamReviewPage> {
     final question = questions[_currentIndex];
     final originalIndex = widget.result.questions.indexOf(question);
     final selected = widget.result.selectionFor(question);
+    final skills = _questionSkills[question.id] ?? const <SkillMnemonic>[];
+    final skillsLoading = _loadingQuestionIds.contains(question.id);
+    final skillsFailed = _failedQuestionIds.contains(question.id);
     return Column(
       children: [
         Padding(
@@ -133,6 +216,15 @@ final class _ExamReviewPageState extends State<ExamReviewPage> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+                if (skillsLoading || skillsFailed || skills.isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  _ExamReviewSkillPanel(
+                    skills: skills,
+                    loading: skillsLoading,
+                    failed: skillsFailed,
+                    onRetry: () => unawaited(_loadSkills(question)),
+                  ),
+                ],
                 const SizedBox(height: 18),
                 const Text(
                   '题目解析',
@@ -176,7 +268,7 @@ final class _ExamReviewPageState extends State<ExamReviewPage> {
                   key: const ValueKey('exam-review-previous'),
                   tooltip: '上一题',
                   onPressed: _currentIndex > 0
-                      ? () => setState(() => _currentIndex -= 1)
+                      ? () => _moveTo(_currentIndex - 1)
                       : null,
                   icon: const Icon(Icons.chevron_left),
                 ),
@@ -186,7 +278,7 @@ final class _ExamReviewPageState extends State<ExamReviewPage> {
                   key: const ValueKey('exam-review-next'),
                   tooltip: '下一题',
                   onPressed: _currentIndex < widget.questions.length - 1
-                      ? () => setState(() => _currentIndex += 1)
+                      ? () => _moveTo(_currentIndex + 1)
                       : null,
                   icon: const Icon(Icons.chevron_right),
                 ),
@@ -194,6 +286,171 @@ final class _ExamReviewPageState extends State<ExamReviewPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+final class _ExamReviewSkillPanel extends StatelessWidget {
+  const _ExamReviewSkillPanel({
+    required this.skills,
+    required this.loading,
+    required this.failed,
+    required this.onRetry,
+  });
+
+  final List<SkillMnemonic> skills;
+  final bool loading;
+  final bool failed;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (skills.isNotEmpty) {
+      return Column(
+        key: const ValueKey('exam-review-inline-skills'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _ExamReviewSectionTitle('速记技巧'),
+          const SizedBox(height: 8),
+          for (var index = 0; index < skills.length; index += 1)
+            _ExamReviewSkillRow(skill: skills[index], index: index),
+        ],
+      );
+    }
+    if (loading) {
+      return const Padding(
+        key: ValueKey('exam-review-inline-skills-loading'),
+        padding: EdgeInsets.symmetric(vertical: 18),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 8),
+            Text('正在加载技巧...'),
+          ],
+        ),
+      );
+    }
+    return Padding(
+      key: const ValueKey('exam-review-inline-skills-error'),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        children: [
+          const Text('技巧加载失败', style: TextStyle(color: Color(0xFF637083))),
+          const SizedBox(height: 8),
+          OutlinedButton(onPressed: onRetry, child: const Text('重新加载')),
+        ],
+      ),
+    );
+  }
+}
+
+final class _ExamReviewSectionTitle extends StatelessWidget {
+  const _ExamReviewSectionTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(width: 3, height: 18, color: const Color(0xFF237DED)),
+        const SizedBox(width: 5),
+        Text(
+          text,
+          style: const TextStyle(
+            color: Color(0xFF263238),
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+final class _ExamReviewSkillRow extends StatelessWidget {
+  const _ExamReviewSkillRow({required this.skill, required this.index});
+
+  final SkillMnemonic skill;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (skill.voiceUrl != null) ...[
+                const Padding(
+                  padding: EdgeInsets.only(top: 1),
+                  child: Icon(
+                    Icons.volume_up_rounded,
+                    size: 22,
+                    color: Color(0xFF237DED),
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
+              Expanded(
+                child: SkillMnemonicHighlightedText(
+                  text: skill.displayText,
+                  terms: skill.keywordTerms,
+                  style: const TextStyle(
+                    color: Color(0xFF263238),
+                    fontSize: 17,
+                    height: 1.45,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (skill.voiceUrl != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: PracticeMediaPlayer(
+                key: ValueKey('exam-review-skill-voice-$index'),
+                rawUrl: skill.voiceUrl,
+                kind: PracticeMediaKind.audio,
+              ),
+            ),
+          if (skill.note.trim().isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.all(8),
+              color: const Color(0xFFF4F6F8),
+              child: SkillMnemonicHighlightedText(
+                text: skill.note,
+                terms: skill.keywordTerms,
+                style: const TextStyle(
+                  color: Color(0xFF52606D),
+                  fontSize: 15,
+                  height: 1.45,
+                ),
+              ),
+            ),
+          if (skill.videoUrl != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: PracticeMediaPlayer(
+                  key: ValueKey('exam-review-skill-video-$index'),
+                  rawUrl: skill.videoUrl,
+                  coverUrl: skill.coverUrl,
+                  kind: PracticeMediaKind.video,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

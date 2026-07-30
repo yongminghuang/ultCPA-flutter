@@ -108,6 +108,76 @@ void main() {
     expect(opened.single.item.skillId, '11');
   });
 
+  testWidgets('cycles the four Android blur assets across locked rows', (
+    tester,
+  ) async {
+    final records = List.generate(
+      6,
+      (index) => <String, Object?>{
+        'skillId': '${index + 1}',
+        'text': '第${index + 1}条口诀',
+        'questionCount': index + 1,
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SkillMnemonicsPage(
+          module: _module,
+          dataSource: _DataSource(
+            () async => _catalog(records: records, freeCount: 1),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (final (position, assetNumber) in [
+      (1, 1),
+      (2, 2),
+      (3, 3),
+      (4, 4),
+      (5, 1),
+    ]) {
+      final image = tester.widget<Image>(
+        find.byKey(ValueKey('mnemonic-lock-image-$position')),
+      );
+      expect(
+        (image.image as AssetImage).assetName,
+        'assets/images/skill_mnemonics/bg_skill_bur_$assetNumber.png',
+      );
+    }
+  });
+
+  testWidgets('launches payment and refreshes entitlement after dismissal', (
+    tester,
+  ) async {
+    var loads = 0;
+    var unlockCalls = 0;
+    final source = _DataSource(() async {
+      loads += 1;
+      return _catalog(freeCount: 0, isVip: loads > 1);
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SkillMnemonicsPage(
+          module: _module,
+          dataSource: source,
+          onUnlock: () async => unlockCalls += 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('mnemonic-lock-0')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('mnemonic-row-0')));
+    await tester.pumpAndSettle();
+
+    expect(unlockCalls, 1);
+    expect(loads, 2);
+    expect(find.byKey(const ValueKey('mnemonic-lock-0')), findsNothing);
+    expect(find.text('看到必须先排除', findRichText: true), findsOneWidget);
+  });
+
   testWidgets('VIP policy exposes every row without changing free count', (
     tester,
   ) async {
@@ -130,28 +200,33 @@ void main() {
 
 SkillMnemonicsCatalog _catalog({
   int freeCount = 3,
+  bool isVip = false,
   List<Map<String, Object?>>? records,
 }) {
-  return SkillMnemonicsCatalog.fromBody({
-    'records':
-        records ??
-        const [
-          {
-            'skillId': '11',
-            'text': '看到必须先排除',
-            'keyword': '必须',
-            'note': '解释一',
-            'questionCount': 7,
-          },
-          {
-            'skillId': '12',
-            'text': '第二条私密口诀',
-            'keyword': '私密',
-            'note': '解释二',
-            'questionCount': 3,
-          },
-        ],
-  }, freeCount: freeCount);
+  return SkillMnemonicsCatalog.fromBody(
+    {
+      'records':
+          records ??
+          const [
+            {
+              'skillId': '11',
+              'text': '看到必须先排除',
+              'keyword': '必须',
+              'note': '解释一',
+              'questionCount': 7,
+            },
+            {
+              'skillId': '12',
+              'text': '第二条私密口诀',
+              'keyword': '私密',
+              'note': '解释二',
+              'questionCount': 3,
+            },
+          ],
+    },
+    freeCount: freeCount,
+    isVip: isVip,
+  );
 }
 
 const _module = HomeModule(id: 42, name: '技巧口诀', page: '技巧口诀', tag: '');

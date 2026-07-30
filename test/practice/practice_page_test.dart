@@ -311,6 +311,30 @@ void main() {
     expect(find.text('技巧解释 related-1', findRichText: true), findsOneWidget);
   });
 
+  testWidgets('restored answers also load related mnemonic content', (
+    tester,
+  ) async {
+    final source = _DataSource(
+      (_) async => _catalog([
+        PracticeQuestionItem(_question('1', choose: 'A', isRight: true)),
+      ]),
+      skillLoader: (questionId) async => [_skill('restored-$questionId').skill],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PracticePage(request: _request, dataSource: source),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+
+    expect(source.skillQuestionIds, ['1']);
+    expect(find.text('速记技巧'), findsOneWidget);
+    expect(find.text('技巧 restored-1', findRichText: true), findsOneWidget);
+    expect(find.text('技巧解释 restored-1', findRichText: true), findsOneWidget);
+  });
+
   testWidgets('stale skill requests cannot overwrite a new chapter session', (
     tester,
   ) async {

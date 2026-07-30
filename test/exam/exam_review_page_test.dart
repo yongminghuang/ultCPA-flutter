@@ -4,6 +4,8 @@ import 'package:ultcpa_flutter/src/exam/exam_models.dart';
 import 'package:ultcpa_flutter/src/exam/exam_review_page.dart';
 import 'package:ultcpa_flutter/src/main_tabs/main_tabs_models.dart';
 import 'package:ultcpa_flutter/src/practice/practice_models.dart';
+import 'package:ultcpa_flutter/src/practice/practice_repository.dart';
+import 'package:ultcpa_flutter/src/skill_mnemonics/skill_mnemonics_models.dart';
 
 void main() {
   testWidgets('shows selected, correct, and explanation without editing', (
@@ -59,6 +61,31 @@ void main() {
     expect(previous.onPressed, isNotNull);
   });
 
+  testWidgets('loads mnemonic labels and content for each reviewed question', (
+    tester,
+  ) async {
+    final result = _result();
+    final source = _SkillSource();
+    await tester.pumpWidget(
+      _app(result, result.questions, skillExplanationDataSource: source),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(source.questionIds, ['1']);
+    expect(find.text('速记技巧'), findsOneWidget);
+    expect(find.text('技巧 1', findRichText: true), findsOneWidget);
+    expect(find.text('技巧解析 1', findRichText: true), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('exam-review-next')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(source.questionIds, ['1', '2']);
+    expect(find.text('技巧 2', findRichText: true), findsOneWidget);
+    expect(find.text('技巧解析 2', findRichText: true), findsOneWidget);
+  });
+
   testWidgets('renders a stable empty review subset', (tester) async {
     final result = _result();
     await tester.pumpWidget(_app(result, const []));
@@ -81,10 +108,36 @@ void main() {
   });
 }
 
-Widget _app(ExamResult result, List<PracticeQuestion> questions) {
+Widget _app(
+  ExamResult result,
+  List<PracticeQuestion> questions, {
+  PracticeSkillExplanationDataSource? skillExplanationDataSource,
+}) {
   return MaterialApp(
-    home: ExamReviewPage(title: '全部题目', result: result, questions: questions),
+    home: ExamReviewPage(
+      title: '全部题目',
+      result: result,
+      questions: questions,
+      skillExplanationDataSource: skillExplanationDataSource,
+    ),
   );
+}
+
+final class _SkillSource implements PracticeSkillExplanationDataSource {
+  final List<String> questionIds = [];
+
+  @override
+  Future<List<SkillMnemonic>> loadSkillsForQuestion(String questionId) async {
+    questionIds.add(questionId);
+    return [
+      SkillMnemonic.fromMap({
+        'skillId': 'skill-$questionId',
+        'text': '技巧 $questionId',
+        'keyword': '技巧',
+        'note': '技巧解析 $questionId',
+      }),
+    ];
+  }
 }
 
 ExamResult _result() {

@@ -165,6 +165,7 @@ enum VipPayEntry {
   secretPaperBottom(VipPaymentSource.secretPaperBottom),
   smartCard(VipPaymentSource.smartCard),
   preExamSixPaper(VipPaymentSource.preExamSixPaper),
+  mnemonicsLockedList(VipPaymentSource.mnemonicsLockedList),
   pastExams(VipPaymentSource.chapterOrPastExamsUnlock),
   circlePaperResult(VipPaymentSource.circlePaperResult);
 

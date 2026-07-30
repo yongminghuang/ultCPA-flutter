@@ -15,11 +15,14 @@ typedef SkillMnemonicDetailLauncher =
       HomeModule module,
     );
 
+typedef SkillMnemonicsUnlockLauncher = FutureOr<void> Function();
+
 final class SkillMnemonicsPage extends StatefulWidget {
   const SkillMnemonicsPage({
     required this.module,
     required this.dataSource,
     this.detailLauncher,
+    this.onUnlock,
     this.isVip,
     super.key,
   });
@@ -27,6 +30,7 @@ final class SkillMnemonicsPage extends StatefulWidget {
   final HomeModule module;
   final SkillMnemonicsDataSource dataSource;
   final SkillMnemonicDetailLauncher? detailLauncher;
+  final SkillMnemonicsUnlockLauncher? onUnlock;
   final bool? isVip;
 
   @override
@@ -37,6 +41,7 @@ final class _SkillMnemonicsPageState extends State<SkillMnemonicsPage> {
   SkillMnemonicsCatalog? _catalog;
   Object? _error;
   bool _loading = true;
+  bool _unlocking = false;
   int _requestNumber = 0;
 
   @override
@@ -72,9 +77,7 @@ final class _SkillMnemonicsPageState extends State<SkillMnemonicsPage> {
     final catalog = _catalog;
     if (catalog == null) return;
     if (!catalog.isUnlocked(index, isVip: widget.isVip)) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('会员与支付功能仍在迁移中')));
+      unawaited(_unlock());
       return;
     }
     final launcher = widget.detailLauncher;
@@ -83,6 +86,31 @@ final class _SkillMnemonicsPageState extends State<SkillMnemonicsPage> {
         launcher(context, catalog.records[index], index, widget.module),
       );
     }
+  }
+
+  Future<void> _unlock() async {
+    if (_unlocking) return;
+    final launcher = widget.onUnlock;
+    if (launcher == null) {
+      _showMessage('会员与支付功能仍在迁移中');
+      return;
+    }
+    setState(() => _unlocking = true);
+    try {
+      await Future<void>.sync(launcher);
+      if (!mounted) return;
+      await _load();
+    } catch (_) {
+      if (mounted) _showMessage('解锁入口打开失败，请重试');
+    } finally {
+      if (mounted) setState(() => _unlocking = false);
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -134,6 +162,7 @@ final class _SkillMnemonicsPageState extends State<SkillMnemonicsPage> {
         return _MnemonicRow(
           item: catalog.records[index],
           position: index,
+          lockedSequence: index - catalog.freeCount,
           unlocked: unlocked,
           onTap: () => _openItem(index),
         );
@@ -146,12 +175,14 @@ final class _MnemonicRow extends StatelessWidget {
   const _MnemonicRow({
     required this.item,
     required this.position,
+    required this.lockedSequence,
     required this.unlocked,
     required this.onTap,
   });
 
   final SkillMnemonic item;
   final int position;
+  final int lockedSequence;
   final bool unlocked;
   final VoidCallback onTap;
 
@@ -162,34 +193,31 @@ final class _MnemonicRow extends StatelessWidget {
       child: InkWell(
         key: ValueKey('mnemonic-row-$position'),
         onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 64),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 11),
-            child: Row(
-              children: [
-                Container(
-                  constraints: const BoxConstraints(
-                    minWidth: 24,
-                    minHeight: 24,
-                  ),
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFE3F4FD),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    '${position + 1}',
-                    style: const TextStyle(
-                      color: Color(0xFF0BA0E9),
-                      fontSize: 16,
-                    ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Container(
+                constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE3F4FD),
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '${position + 1}',
+                  style: const TextStyle(
+                    color: Color(0xFF0BA0E9),
+                    fontSize: 16,
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: unlocked
-                      ? SkillMnemonicHighlightedText(
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: unlocked
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                        child: SkillMnemonicHighlightedText(
                           key: ValueKey('mnemonic-title-$position'),
                           text: item.displayText,
                           terms: item.keywordTerms,
@@ -200,31 +228,27 @@ final class _MnemonicRow extends StatelessWidget {
                             fontSize: 14,
                             height: 1.4,
                           ),
-                        )
-                      : _LockedMnemonic(position: position),
-                ),
-                const SizedBox(width: 8),
-                if (!unlocked) ...[
-                  const Icon(
-                    Icons.workspace_premium_outlined,
-                    color: Color(0xFFE6A23C),
-                    size: 25,
-                  ),
-                  const SizedBox(width: 4),
-                ],
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 35),
-                  child: Text(
-                    '${item.questionCount}题',
-                    textAlign: TextAlign.end,
-                    style: const TextStyle(
-                      color: Color(0xFFA1A9B2),
-                      fontSize: 16,
-                    ),
+                        ),
+                      )
+                    : _LockedMnemonic(
+                        position: position,
+                        sequence: lockedSequence,
+                      ),
+              ),
+              const SizedBox(width: 12),
+              if (!unlocked) ...[const _VipBadge(), const SizedBox(width: 2)],
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 35),
+                child: Text(
+                  '${item.questionCount}题',
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(
+                    color: Color(0xFFA1A9B2),
+                    fontSize: 16,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -233,26 +257,56 @@ final class _MnemonicRow extends StatelessWidget {
 }
 
 final class _LockedMnemonic extends StatelessWidget {
-  const _LockedMnemonic({required this.position});
+  const _LockedMnemonic({required this.position, required this.sequence});
 
   final int position;
+  final int sequence;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final assetNumber = sequence % 4 + 1;
+    return Padding(
       key: ValueKey('mnemonic-lock-$position'),
-      height: 30,
-      alignment: Alignment.centerLeft,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE9EDF1),
-        borderRadius: BorderRadius.circular(3),
+      padding: const EdgeInsets.symmetric(vertical: 15),
+      child: SizedBox(
+        height: 21,
+        child: Image.asset(
+          'assets/images/skill_mnemonics/bg_skill_bur_$assetNumber.png',
+          key: ValueKey('mnemonic-lock-image-$position'),
+          fit: BoxFit.contain,
+          alignment: Alignment.center,
+        ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: const Text(
-        '会员专享技巧口诀',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: Color(0xFF9AA3AB), fontSize: 14),
+    );
+  }
+}
+
+final class _VipBadge extends StatelessWidget {
+  const _VipBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 28,
+      height: 28,
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9D37B),
+            borderRadius: BorderRadius.circular(2),
+          ),
+          child: const Text(
+            'VIP',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 9,
+              height: 1,
+              fontWeight: FontWeight.w900,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ),
       ),
     );
   }

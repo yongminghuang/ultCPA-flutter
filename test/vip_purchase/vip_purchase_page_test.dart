@@ -89,6 +89,78 @@ void main() {
     },
   );
 
+  testWidgets('matches Android selected and unselected price card states', (
+    tester,
+  ) async {
+    final dataSource = _DataSource(
+      session: _session(expanded: true),
+      skuHandler: (_, _) async => _selection(),
+    );
+
+    await tester.pumpWidget(_app(dataSource));
+    await tester.pumpAndSettle();
+
+    BoxDecoration surfaceDecoration(int index) {
+      final surface = tester.widget<Container>(
+        find.byKey(ValueKey('vip-price-card-$index-surface')),
+      );
+      return surface.decoration! as BoxDecoration;
+    }
+
+    BoxDecoration dailyDecoration(int index) {
+      final daily = tester.widget<Container>(
+        find.byKey(ValueKey('vip-price-card-$index-daily')),
+      );
+      return daily.decoration! as BoxDecoration;
+    }
+
+    final selectedSurface = surfaceDecoration(0);
+    expect((selectedSurface.gradient! as LinearGradient).colors, const [
+      Color(0xFFFFEFCE),
+      Colors.white,
+    ]);
+    expect(
+      (selectedSurface.border! as Border).top.color,
+      const Color(0xFFFFCFA1),
+    );
+    expect(find.byKey(const ValueKey('vip-price-card-0-stripes')), findsOne);
+    expect(
+      find.byKey(const ValueKey('vip-price-card-1-stripes')),
+      findsNothing,
+    );
+    expect((dailyDecoration(0).gradient! as LinearGradient).colors, const [
+      Color(0xFFFF9C24),
+      Color(0xFFF85A0C),
+    ]);
+
+    final unselectedSurface = surfaceDecoration(1);
+    expect(unselectedSurface.color, Colors.white);
+    expect(unselectedSurface.gradient, isNull);
+    expect(
+      (unselectedSurface.border! as Border).top.color,
+      const Color(0xFFE5E5EA),
+    );
+    expect(dailyDecoration(1).color, const Color(0xFFFFE5B8));
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('vip-price-card-0')),
+        matching: find.text('¥'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('vip-price-card-1')));
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('vip-price-card-0-stripes')),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('vip-price-card-1-stripes')), findsOne);
+    expect(surfaceDecoration(0).color, Colors.white);
+    expect(surfaceDecoration(1).gradient, isA<LinearGradient>());
+  });
+
   testWidgets('uses skill-only fallback and hides empty user header', (
     tester,
   ) async {

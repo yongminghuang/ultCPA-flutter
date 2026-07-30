@@ -867,6 +867,24 @@ void main() {
         consentStore: _ConsentStore(true),
         initializer: _Initializer(),
         delay: (_) async {},
+        mainTabsDataSource: _DataSource(_routingHome(_mnemonicModule)),
+        skillMnemonicsDataSource: _LockedMnemonicDataSource(),
+        vipPaySheetLauncher: present,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('home-module-42')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('mnemonic-row-0')));
+    await tester.pumpAndSettle();
+    expect(entries, [VipPayEntry.mnemonicsLockedList]);
+
+    await tester.pumpWidget(
+      StartupApp(
+        key: UniqueKey(),
+        consentStore: _ConsentStore(true),
+        initializer: _Initializer(),
+        delay: (_) async {},
         mainTabsDataSource: _DataSource(_routingHome(fastModule)),
         fastPracticeDataSource: _FastPracticeDataSource(
           destination: FastPracticeEntryDestination.landing,
@@ -967,6 +985,7 @@ void main() {
     expect(entries.last, VipPayEntry.pastExams);
 
     expect(entries, [
+      VipPayEntry.mnemonicsLockedList,
       VipPayEntry.fast300,
       VipPayEntry.secretPaperBottom,
       VipPayEntry.secretPaperList,
@@ -2685,6 +2704,23 @@ final class _MnemonicDataSource implements SkillMnemonicsDataSource {
         },
       ],
     }, freeCount: 3);
+  }
+}
+
+final class _LockedMnemonicDataSource implements SkillMnemonicsDataSource {
+  @override
+  Future<SkillMnemonicsCatalog> load(HomeModule module) async {
+    return SkillMnemonicsCatalog.fromBody(const {
+      'records': [
+        {
+          'skillId': '11',
+          'text': '看到必须先排除',
+          'keyword': '必须',
+          'note': '结合题干排除绝对表述',
+          'questionCount': 7,
+        },
+      ],
+    }, freeCount: 0);
   }
 }
 

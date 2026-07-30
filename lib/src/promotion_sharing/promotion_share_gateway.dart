@@ -7,6 +7,10 @@ abstract interface class PromotionShareGateway {
 
   Future<void> saveProfile(PromotionProfile profile);
 
+  Future<PromotionPosterPreference?> readSelectedPoster();
+
+  Future<void> saveSelectedPoster(PromotionPoster poster);
+
   Future<Uint8List> createQrCode(String content, {int size = 360});
 
   Future<void> shareWechatImage(Uint8List pngBytes, {required bool timeline});
@@ -46,6 +50,26 @@ final class MethodChannelPromotionShareGateway
     return _channel.invokeMethod<void>('savePromotionProfile', {
       'name': profile.name,
       'phone': profile.phone,
+    });
+  }
+
+  @override
+  Future<PromotionPosterPreference?> readSelectedPoster() async {
+    final raw = await _channel.invokeMapMethod<Object?, Object?>(
+      'readSelectedPromotionPoster',
+    );
+    if (raw == null) return null;
+    return PromotionPosterPreference(
+      posterId: raw['posterId']?.toString() ?? '',
+      templateUrl: raw['templateUrl']?.toString() ?? '',
+    );
+  }
+
+  @override
+  Future<void> saveSelectedPoster(PromotionPoster poster) {
+    return _channel.invokeMethod<void>('saveSelectedPromotionPoster', {
+      'posterId': poster.id,
+      'templateUrl': poster.templateUrl,
     });
   }
 

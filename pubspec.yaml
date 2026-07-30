@@ -32,3 +32,5 @@ flutter:
     - assets/images/main_tabs/
     - assets/images/practice/
     - assets/images/authentication/
+    - assets/images/promotion_sharing/
+    - assets/images/skill_mnemonics/

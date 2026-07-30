@@ -4,7 +4,7 @@ import 'package:ultcpa_flutter/src/promotion_sharing/promotion_sharing_repositor
 import 'package:ultcpa_flutter/src/storage/legacy_app_state_store.dart';
 
 void main() {
-  test('loads visible promotion posters and account profile', () async {
+  test('loads Android endpoint posters and account profile', () async {
     final api = _Api([
       {
         'id': 1,
@@ -22,8 +22,8 @@ void main() {
     final session = await repository.load('');
 
     expect(api.paths, ['/app/promotionPoster/list']);
-    expect(session.posters, hasLength(1));
-    expect(session.posters.single.templateUrl, 'https://oss.test/one.png');
+    expect(session.posters, hasLength(2));
+    expect(session.posters.first.templateUrl, 'https://oss.test/one.png');
     expect(session.profile.name, '推广老师');
     expect(session.profile.phone, '13800138000');
     expect(session.inviteUrl, contains('inviteCode=user-9'));

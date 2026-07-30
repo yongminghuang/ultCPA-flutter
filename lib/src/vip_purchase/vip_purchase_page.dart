@@ -365,112 +365,155 @@ final class _VipPurchasePageState extends State<VipPurchasePage> {
   }
 
   Widget _buildSelector(VipPurchaseSession session) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
-      decoration: BoxDecoration(
-        color: const Color(0xF7FFFFFF),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              for (final type in session.productTypes)
-                Expanded(child: _buildTypeTab(type)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '请选择 (已选${_selectedSubjectIndices.length}科）',
-                  style: const TextStyle(
-                    color: Color(0xFF33333D),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 320;
+            return Row(
+              mainAxisSize: compact ? MainAxisSize.max : MainAxisSize.min,
+              children: [
+                for (
+                  var index = 0;
+                  index < session.productTypes.length;
+                  index++
+                )
+                  if (compact)
+                    Expanded(
+                      child: _buildTypeTab(
+                        session.productTypes[index],
+                        isLast: true,
+                        compact: true,
+                      ),
+                    )
+                  else
+                    _buildTypeTab(
+                      session.productTypes[index],
+                      isLast: index == session.productTypes.length - 1,
+                    ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Positioned(
+                    left: 0,
+                    top: 1,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Color(0xFFFF8A00),
+                        shape: BoxShape.circle,
+                      ),
+                      child: SizedBox.square(dimension: 8),
+                    ),
                   ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Text(
+                      '请选择 (已选${_selectedSubjectIndices.length}科）',
+                      style: const TextStyle(
+                        color: Color(0xFF33333D),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            InkWell(
+              key: const ValueKey('vip-select-all'),
+              onTap: _toggleAllSubjects,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 4, 0, 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _VipSelectionIndicator(
+                      selected:
+                          _selectedSubjectIndices.length ==
+                          session.subjects.length,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _selectedSubjectIndices.length == session.subjects.length
+                          ? '清除'
+                          : '全选',
+                      style: const TextStyle(
+                        color: Color(0xFF33333D),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              InkWell(
-                key: const ValueKey('vip-select-all'),
-                onTap: _toggleAllSubjects,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _selectedSubjectIndices.length ==
-                                session.subjects.length
-                            ? Icons.check_circle
-                            : Icons.radio_button_unchecked,
-                        size: 16,
-                        color: const Color(0xFFE6533C),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _selectedSubjectIndices.length ==
-                                session.subjects.length
-                            ? '清除'
-                            : '全选',
-                        style: const TextStyle(
-                          color: Color(0xFF33333D),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (var index = 0; index < session.subjects.length; index++)
-                _buildSubjectChip(session.subjects[index], index),
-            ],
-          ),
-          const SizedBox(height: 14),
-          _buildPriceCards(),
-        ],
-      ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (var index = 0; index < session.subjects.length; index++)
+              _buildSubjectChip(session.subjects[index], index),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _buildPriceCards(),
+      ],
     );
   }
 
-  Widget _buildTypeTab(VipProductType type) {
+  Widget _buildTypeTab(
+    VipProductType type, {
+    required bool isLast,
+    bool compact = false,
+  }) {
     final selected = type == _selectedType;
-    return InkWell(
-      key: ValueKey('vip-type-${type.name}'),
-      onTap: () => _switchType(type),
-      child: SizedBox(
-        height: 34,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                type.label,
-                style: TextStyle(
-                  color: const Color(0xFF33333D),
-                  fontSize: 16,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+    return Padding(
+      padding: EdgeInsets.only(right: compact || isLast ? 0 : 20),
+      child: InkWell(
+        key: ValueKey('vip-type-${type.name}'),
+        onTap: () => _switchType(type),
+        child: SizedBox(
+          height: 34,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  type.label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: const Color(0xFF33333D),
+                    fontSize: 17,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              width: 20,
-              height: 3,
-              color: selected ? const Color(0xFFE6533C) : Colors.transparent,
-            ),
-          ],
+              const SizedBox(height: 4),
+              Container(
+                width: 20,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? const Color(0xFFE6533C)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -481,44 +524,44 @@ final class _VipPurchasePageState extends State<VipPurchasePage> {
     final label = subject.name.startsWith('经济法') ? '经济法' : subject.name;
     return Material(
       key: ValueKey('vip-subject-${subject.id}'),
-      color: selected ? const Color(0xFFFFECE6) : const Color(0xFFF4F4F5),
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(5),
       child: InkWell(
         onTap: () => _toggleSubject(index),
         borderRadius: BorderRadius.circular(5),
-        child: Container(
-          constraints: const BoxConstraints(minWidth: 82, minHeight: 36),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: selected
-                  ? const Color(0xFFE6533C)
-                  : const Color(0xFFE2E2E4),
-            ),
-            borderRadius: BorderRadius.circular(5),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (selected) ...[
-                const Icon(
-                  Icons.check_circle,
-                  color: Color(0xFFE6533C),
-                  size: 14,
+        child: Stack(
+          children: [
+            Container(
+              height: 31,
+              constraints: const BoxConstraints(minWidth: 82),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: selected ? const Color(0xFFFFF3E6) : Colors.white,
+                border: Border.all(
+                  color: selected
+                      ? const Color(0xFFFF8A00)
+                      : const Color(0xFFE5E5EA),
                 ),
-                const SizedBox(width: 4),
-              ],
-              Text(
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: Text(
                 label,
+                maxLines: 1,
                 style: TextStyle(
                   color: const Color(0xFF33333D),
                   fontSize: 13,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
-            ],
-          ),
+            ),
+            if (selected)
+              const Positioned(
+                right: 0,
+                bottom: 0,
+                child: _VipSelectedCorner(),
+              ),
+          ],
         ),
       ),
     );
@@ -533,29 +576,30 @@ final class _VipPurchasePageState extends State<VipPurchasePage> {
     final productSkus = selection.products
         .expand((product) => product.skus)
         .toList(growable: false);
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (var index = 0; index < selection.skus.length; index++) ...[
-            _PriceCard(
-              cardKey: ValueKey('vip-price-card-$index'),
-              sku: selection.skus[index],
-              dailyText: formatVipDailyPrice(
-                totalPrice: selection.skus[index].totalPrice,
-                subjectCount: selection.skus[index].shopCart.length,
-                days: resolveVipSkuDays(
-                  selection.skus[index].skuName,
-                  productSkus,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < selection.skus.length; index++)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: _PriceCard(
+                cardId: 'vip-price-card-$index',
+                sku: selection.skus[index],
+                dailyText: formatVipDailyPrice(
+                  totalPrice: selection.skus[index].totalPrice,
+                  subjectCount: selection.skus[index].shopCart.length,
+                  days: resolveVipSkuDays(
+                    selection.skus[index].skuName,
+                    productSkus,
+                  ),
                 ),
+                selected: index == _selectedSkuIndex,
+                onTap: () => setState(() => _selectedSkuIndex = index),
               ),
-              selected: index == _selectedSkuIndex,
-              onTap: () => setState(() => _selectedSkuIndex = index),
             ),
-            if (index != selection.skus.length - 1) const SizedBox(width: 8),
-          ],
-        ],
-      ),
+          ),
+      ],
     );
   }
 
@@ -930,14 +974,14 @@ final class _SessionFailure extends StatelessWidget {
 
 final class _PriceCard extends StatelessWidget {
   const _PriceCard({
-    required this.cardKey,
+    required this.cardId,
     required this.sku,
     required this.dailyText,
     required this.selected,
     required this.onTap,
   });
 
-  final Key cardKey;
+  final String cardId;
   final VipCommonSku sku;
   final String dailyText;
   final bool selected;
@@ -945,67 +989,223 @@ final class _PriceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      key: cardKey,
-      color: selected ? const Color(0xFFFFF3EA) : const Color(0xFFF7F7F8),
-      borderRadius: BorderRadius.circular(6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          width: 104,
-          height: 104,
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: selected
-                  ? const Color(0xFFE6533C)
-                  : const Color(0xFFE2E2E4),
-              width: selected ? 1.5 : 1,
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        key: ValueKey(cardId),
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(5),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            key: ValueKey('$cardId-surface'),
+            height: 104,
+            decoration: BoxDecoration(
+              color: selected ? null : Colors.white,
+              gradient: selected
+                  ? const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFFFFEFCE), Colors.white],
+                    )
+                  : null,
+              border: Border.all(
+                color: selected
+                    ? const Color(0xFFFFCFA1)
+                    : const Color(0xFFE5E5EA),
+              ),
+              borderRadius: BorderRadius.circular(5),
             ),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                sku.skuName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF33333D),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
+            child: Column(
+              children: [
+                Expanded(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (selected)
+                        CustomPaint(
+                          key: ValueKey('$cardId-stripes'),
+                          painter: const _VipCardStripesPainter(),
+                        ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 14, 8, 10),
+                        child: Column(
+                          children: [
+                            Text(
+                              sku.skuName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF33333D),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Expanded(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    const Padding(
+                                      padding: EdgeInsets.only(bottom: 3),
+                                      child: Text(
+                                        '¥',
+                                        style: TextStyle(
+                                          color: Color(0xFFF9600E),
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      formatVipMoney(sku.totalPrice),
+                                      style: const TextStyle(
+                                        color: Color(0xFFF9600E),
+                                        fontSize: 27,
+                                        height: 1,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                formatVipMoney(sku.totalPrice),
-                style: const TextStyle(
-                  color: Color(0xFFE6533C),
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
+                Container(
+                  key: ValueKey('$cardId-daily'),
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: selected ? null : const Color(0xFFFFE5B8),
+                    gradient: selected
+                        ? const LinearGradient(
+                            colors: [Color(0xFFFF9C24), Color(0xFFF85A0C)],
+                          )
+                        : null,
+                  ),
+                  child: Text(
+                    dailyText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: selected ? Colors.white : const Color(0xFF33333D),
+                      fontSize: 10,
+                      height: 1.2,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                dailyText,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: selected ? Colors.white : const Color(0xFF33333D),
-                  backgroundColor: selected
-                      ? const Color(0xFFE6533C)
-                      : const Color(0xFFE9E9EB),
-                  fontSize: 9,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+final class _VipSelectionIndicator extends StatelessWidget {
+  const _VipSelectionIndicator({required this.selected});
+
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 16,
+      height: 16,
+      decoration: BoxDecoration(
+        color: selected ? const Color(0xFFFF8A00) : Colors.transparent,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: selected ? const Color(0xFFFF8A00) : const Color(0xFF858585),
+          width: 1.5,
+        ),
+      ),
+      child: selected
+          ? const Icon(Icons.check_rounded, color: Colors.white, size: 11)
+          : null,
+    );
+  }
+}
+
+final class _VipSelectedCorner extends StatelessWidget {
+  const _VipSelectedCorner();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 14,
+      height: 13,
+      child: CustomPaint(
+        painter: const _VipSelectedCornerPainter(),
+        child: const Align(
+          alignment: Alignment.bottomRight,
+          child: Padding(
+            padding: EdgeInsets.only(right: 1, bottom: 1),
+            child: Icon(Icons.check_rounded, size: 8, color: Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+final class _VipSelectedCornerPainter extends CustomPainter {
+  const _VipSelectedCornerPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(path, Paint()..color = const Color(0xFFFF7900));
+  }
+
+  @override
+  bool shouldRepaint(_VipSelectedCornerPainter oldDelegate) => false;
+}
+
+final class _VipCardStripesPainter extends CustomPainter {
+  const _VipCardStripesPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final shift = size.height * 0.58;
+    final stripeWidth = size.width * 0.28;
+    final gap = size.width * 0.18;
+    final paint = Paint()..color = const Color(0x1AFFFFFF);
+    for (
+      var x = -stripeWidth;
+      x < size.width + shift + stripeWidth;
+      x += stripeWidth + gap
+    ) {
+      final path = Path()
+        ..moveTo(x + shift, 0)
+        ..lineTo(x + shift + stripeWidth, 0)
+        ..lineTo(x + stripeWidth, size.height)
+        ..lineTo(x, size.height)
+        ..close();
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_VipCardStripesPainter oldDelegate) => false;
 }
 
 final class _PrivilegeGrid extends StatelessWidget {

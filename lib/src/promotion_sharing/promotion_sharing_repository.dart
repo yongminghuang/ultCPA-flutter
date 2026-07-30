@@ -4,6 +4,8 @@ import 'promotion_sharing_models.dart';
 
 abstract interface class PromotionSharingDataSource {
   Future<PromotionSharingSession> load(String inviteContent);
+
+  Future<List<PromotionPoster>> loadPosters();
 }
 
 final class PromotionSharingRepository implements PromotionSharingDataSource {
@@ -20,22 +22,9 @@ final class PromotionSharingRepository implements PromotionSharingDataSource {
   Future<PromotionSharingSession> load(String inviteContent) async {
     final snapshot = await _stateStore.readAppSnapshot();
     final ossDomain = _text(snapshot['ossDomain']).trim();
-    final posters = <PromotionPoster>[];
+    var posters = <PromotionPoster>[];
     try {
-      final body = await _api.getBody('/app/promotionPoster/list');
-      if (body is! List) {
-        throw const FormatException('推广海报列表响应不是数组');
-      }
-      for (final raw in body) {
-        if (raw is! Map) continue;
-        final poster = PromotionPoster.fromMap(
-          Map<String, dynamic>.from(raw),
-          ossDomain: ossDomain,
-        );
-        if (poster.showStatus && poster.templateUrl.isNotEmpty) {
-          posters.add(poster);
-        }
-      }
+      posters = await _fetchPosters(ossDomain);
     } catch (_) {
       // Keep the locally persisted Android fallback usable while offline.
     }
@@ -67,6 +56,31 @@ final class PromotionSharingRepository implements PromotionSharingDataSource {
       ),
       posters: posters,
     );
+  }
+
+  @override
+  Future<List<PromotionPoster>> loadPosters() async {
+    final snapshot = await _stateStore.readAppSnapshot();
+    return _fetchPosters(_text(snapshot['ossDomain']).trim());
+  }
+
+  Future<List<PromotionPoster>> _fetchPosters(String ossDomain) async {
+    final body = await _api.getBody('/app/promotionPoster/list');
+    if (body is! List) {
+      throw const FormatException('推广海报列表响应不是数组');
+    }
+    final posters = <PromotionPoster>[];
+    for (final raw in body) {
+      if (raw is! Map) continue;
+      final poster = PromotionPoster.fromMap(
+        Map<String, dynamic>.from(raw),
+        ossDomain: ossDomain,
+      );
+      // Android renders every poster returned by this endpoint. Visibility is
+      // enforced by the server response rather than filtered again on-device.
+      if (poster.templateUrl.isNotEmpty) posters.add(poster);
+    }
+    return List<PromotionPoster>.unmodifiable(posters);
   }
 }
 

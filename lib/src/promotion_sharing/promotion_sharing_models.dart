@@ -36,6 +36,16 @@ final class PromotionProfile {
   final String phone;
 }
 
+final class PromotionPosterPreference {
+  const PromotionPosterPreference({
+    required this.posterId,
+    required this.templateUrl,
+  });
+
+  final String posterId;
+  final String templateUrl;
+}
+
 final class PromotionSharingSession {
   PromotionSharingSession({
     required this.inviteUrl,

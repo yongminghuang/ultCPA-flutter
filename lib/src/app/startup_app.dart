@@ -553,6 +553,12 @@ final class _StartupAppState extends State<StartupApp>
               module: module,
               dataSource: _skillMnemonicsDataSource,
               detailLauncher: _openMnemonicDetail,
+              onUnlock: () async {
+                await _openVipPaySheet(
+                  context,
+                  VipPayEntry.mnemonicsLockedList,
+                );
+              },
             ),
           ),
         );
@@ -819,6 +825,7 @@ final class _StartupAppState extends State<StartupApp>
         builder: (_) => ExamResultPage(
           result: result,
           uploadFailed: uploadFailed,
+          skillExplanationDataSource: _practiceSkillExplanationDataSource,
           onImprove:
               widget.examImproveLauncher ??
               (context) =>
@@ -863,6 +870,7 @@ final class _StartupAppState extends State<StartupApp>
           dataSource: _dailySkillDataSource,
           progressStore: _dailySkillProgressStore,
           improveLauncher: _openDailySkillImprove,
+          skillExplanationDataSource: _practiceSkillExplanationDataSource,
         ),
       ),
     );
@@ -890,9 +898,19 @@ final class _StartupAppState extends State<StartupApp>
           module: mnemonicModule!,
           dataSource: _skillMnemonicsDataSource,
           detailLauncher: _openMnemonicDetail,
+          onUnlock: () async {
+            await _openVipPaySheet(context, VipPayEntry.mnemonicsLockedList);
+          },
         ),
       ),
     );
+  }
+
+  PracticeSkillExplanationDataSource? get _practiceSkillExplanationDataSource {
+    final source = _practiceDataSource;
+    return source is PracticeSkillExplanationDataSource
+        ? source as PracticeSkillExplanationDataSource
+        : null;
   }
 
   Future<void> _openHomeErrorReview(BuildContext context) async {
