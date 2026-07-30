@@ -449,9 +449,14 @@ final class _LearningFeedDocumentCard extends StatelessWidget {
                   key: ValueKey('learning-material-feed-more-${item.id}'),
                   onPressed: onOpen,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFED3C00),
+                    backgroundColor: const Color(0xFF4983FB),
+                    foregroundColor: Colors.white,
+                    textStyle: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                   child: const Text('查看更多'),

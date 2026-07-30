@@ -7,6 +7,44 @@ import 'package:ultcpa_flutter/src/learning_materials/learning_materials_reposit
 import 'package:ultcpa_flutter/src/main_tabs/main_tabs_models.dart';
 
 void main() {
+  testWidgets('document action matches the Android feed button', (
+    tester,
+  ) async {
+    final item = LearningMaterialsItem.fromMap({
+      'id': 7,
+      'type': '文档',
+      'title': '资料正文',
+      'text': '<p>资料预览</p>',
+      'isShow': true,
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LearningMaterialsFeedPage(
+          request: _request(item),
+          dataSource: _Source(),
+          detailLauncher: (_, _, _) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final button = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('learning-material-feed-more-7')),
+    );
+    final states = <WidgetState>{};
+    expect(
+      button.style?.backgroundColor?.resolve(states),
+      const Color(0xFF4983FB),
+    );
+    final shape = button.style?.shape?.resolve(states);
+    expect(shape, isA<RoundedRectangleBorder>());
+    expect(
+      (shape! as RoundedRectangleBorder).borderRadius,
+      BorderRadius.circular(8),
+    );
+  });
+
   testWidgets('paid card becomes a pay-jump card and does not charge twice', (
     tester,
   ) async {

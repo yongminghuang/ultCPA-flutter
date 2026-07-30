@@ -31,9 +31,9 @@ void main() {
     await tester.tap(find.text('打开分类'));
     await tester.pumpAndSettle();
 
-    expect(find.text('切换分类'), findsOneWidget);
-    expect(find.text('社工'), findsOneWidget);
-    expect(find.text('会计'), findsOneWidget);
+    expect(find.text('请选择考试类目'), findsOneWidget);
+    expect(find.byKey(const ValueKey('category-section-社工')), findsOneWidget);
+    expect(find.byKey(const ValueKey('category-section-会计')), findsOneWidget);
     expect(find.text('初级社工'), findsOneWidget);
     final selected = tester.widget<Semantics>(
       find.byKey(const ValueKey('category-option-social-work_1016')),
